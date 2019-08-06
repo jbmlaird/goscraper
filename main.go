@@ -16,8 +16,8 @@ func main() {
 		log.Fatalf("URL supplied is in the incorrect format: %v, err: %v", urlToCrawl, err)
 	}
 
-	httpClient := NewHttpClient(0, 0)
+	httpClient := NewHttpClient(3, 0, 1, 10)
 	fmt.Println(httpClient)
-	// a, b := httpClient.fetchUrl(urlToCrawl)
+	// a, b := httpClient.getUrl(urlToCrawl)
 	// do some swag shit with the links when returned
 }

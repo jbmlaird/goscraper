@@ -7,41 +7,50 @@ import (
 	"time"
 )
 
-type HttpClient struct {
-	retries    int
-	retryCount int
-	retryDelay int
+type RetryHttpClient struct {
+	retryPolicy RetryPolicy
+	http.Client
 }
 
-func NewHttpClient(retries, retryDelay int) *HttpClient {
-	return &HttpClient{
-		retries:    retries,
-		retryCount: 0,
-		retryDelay: retryDelay,
+func NewHttpClient(retries, retryCount, retryDelay, timeoutSeconds int) *RetryHttpClient {
+	return &RetryHttpClient{
+		RetryPolicy{
+			retries:           retries,
+			retryCount:        retryCount,
+			retryDelaySeconds: retryDelay,
+		},
+		http.Client{
+			Timeout: time.Second * time.Duration(timeoutSeconds),
+		},
 	}
 }
 
-func (h *HttpClient) fetchUrl(url string) (*http.Response, error) {
-	// timeouts
+const errorMessage = "Error fetching URL %v"
+
+func (r *RetryHttpClient) getUrl(url string) (*http.Response, error) {
 	var (
 		response *http.Response
 		err      error
 	)
-	for h.retryCount = 0; h.retryCount < h.retries+1; h.retryCount++ {
-		response, err = http.Get(url)
-		response.Body.Close()
+	for r.retryPolicy.retryCount = 0; r.retryPolicy.retryCount <= r.retryPolicy.retries; r.retryPolicy.retryCount++ {
+		response, err = r.Get(url)
 		if err != nil {
-			if h.retryCount == h.retries-1 {
-				err = errors.Wrapf(err, "Error fetching URL %v, err: %v", url, err)
+			return nil, err
+		}
+		if response != nil {
+			if response.StatusCode == http.StatusOK {
+				break
 			} else {
-				log.Printf("Error fetching URL %v, err: %v", url, err)
-				time.Sleep(time.Second * time.Duration(h.retryDelay))
-				h.retryDelay = h.retryDelay * 2
+				response.Body.Close()
+				if r.retryPolicy.isFinalTry() {
+					return nil, errors.Errorf(errorMessage, url)
+				} else {
+					log.Printf("Error fetching URL: %v", url)
+					time.Sleep(r.retryPolicy.getRetryDelay())
+					r.retryPolicy.backoff()
+				}
 			}
 		}
-		if response != nil && response.StatusCode == http.StatusOK {
-			break
-		}
 	}
-	return response, err
+	return response, nil
 }
