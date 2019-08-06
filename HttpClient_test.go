@@ -15,7 +15,7 @@ func TestURLFetcher(t *testing.T) {
 		ts := buildHttpServer(t, statusCode)
 		defer ts.Close()
 
-		response, err := httpClient.getUrl(ts.URL)
+		response, err := httpClient.getResponse(ts.URL)
 
 		assertNoError(t, err)
 		assertStatusCode(t, response.StatusCode, statusCode)
@@ -29,7 +29,7 @@ func TestURLFetcher(t *testing.T) {
 		ts := buildHttpServer(t, statusCode)
 		defer ts.Close()
 
-		_, err := httpClient.getUrl(ts.URL)
+		_, err := httpClient.getResponse(ts.URL)
 
 		assertErrorMessage(t, err, fmt.Sprintf(errorMessage, ts.URL))
 		assertRetryValue(t, httpClient.retryPolicy.retries, 3)

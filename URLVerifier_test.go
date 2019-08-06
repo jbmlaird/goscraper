@@ -47,7 +47,7 @@ func TestVerifyUrl(t *testing.T) {
 
 	for _, test := range successCases {
 		t.Run(test.Name, func(t *testing.T) {
-			got, err := verifyUrl(test.URL)
+			got, err := verifyHostname(test.URL)
 			assertNoError(t, err)
 			assertOutput(t, got, test.Hostname)
 		})
@@ -77,7 +77,7 @@ func TestVerifyUrl(t *testing.T) {
 
 	for _, test := range errorCases {
 		t.Run(test.Name, func(t *testing.T) {
-			_, err := verifyUrl(test.URL)
+			_, err := verifyHostname(test.URL)
 			assertErrorMessage(t, err, errInvalidRegex.Error())
 		})
 	}

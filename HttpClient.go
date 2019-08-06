@@ -28,7 +28,7 @@ func NewHttpClient(retries, retryCount, retryDelay, timeoutSeconds int) *RetryHt
 
 const errorMessage = "Error fetching URL %v"
 
-func (r *RetryHttpClient) getUrl(url string) (*http.Response, error) {
+func (r *RetryHttpClient) getResponse(url string) (*http.Response, error) {
 	var (
 		response *http.Response
 		err      error

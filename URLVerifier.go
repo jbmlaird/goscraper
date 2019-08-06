@@ -11,9 +11,7 @@ var (
 	validUrlRegex = fmt.Sprintf(`(?i)^(?:(https?|ftp|smtp)\:\/\/)?(?P<%v>[[:alnum:]]+\.[[:alnum:]]+(?:\.[[:alnum:]]+)?)$`, hostname)
 )
 
-// This could be expanded to contain verification on the string and return appropriate error messages
-// depending on how it has been malformed
-func verifyUrl(url string) (string, error) {
+func verifyHostname(url string) (string, error) {
 	regex := regexp.MustCompile(validUrlRegex)
 	res := regex.FindStringSubmatch(url)
 
@@ -23,4 +21,9 @@ func verifyUrl(url string) (string, error) {
 		}
 	}
 	return "", errInvalidRegex
+}
+
+// TODO: Extract hostname function?
+func isSubdomain(hostname, subdomain string) bool {
+	return false
 }
