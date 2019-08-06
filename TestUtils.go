@@ -2,17 +2,17 @@ package main
 
 import "testing"
 
-func assertStatus(t *testing.T, got, want int) {
-	t.Helper()
-	if got != want {
-		t.Errorf("got %v but wanted %v", got, want)
-	}
-}
-
 func assertNoError(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {
 		t.Fatalf("got an unexpected error, %v", err)
+	}
+}
+
+func assertError(t *testing.T, err error) {
+	t.Helper()
+	if err == nil {
+		t.Fatalf("expected an error but didn't get one")
 	}
 }
 

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"log"
 	"net/http"
 	"time"
@@ -24,27 +24,24 @@ func NewHttpClient(retries, retryDelay int) *HttpClient {
 func (h *HttpClient) fetchUrl(url string) (*http.Response, error) {
 	// timeouts
 	var (
-		response   *http.Response
-		err        error
-		logMessage string
+		response *http.Response
+		err      error
 	)
-	for h.retryCount = 0; h.retryCount < h.retries; h.retries++ {
+	for h.retryCount = 0; h.retryCount < h.retries+1; h.retryCount++ {
 		response, err = http.Get(url)
+		response.Body.Close()
 		if err != nil {
 			if h.retryCount == h.retries-1 {
-				logMessage = "Giving up 😱"
+				err = errors.Wrapf(err, "Error fetching URL %v, err: %v", url, err)
 			} else {
-				logMessage = "Retrying"
+				log.Printf("Error fetching URL %v, err: %v", url, err)
+				time.Sleep(time.Second * time.Duration(h.retryDelay))
+				h.retryDelay = h.retryDelay * 2
 			}
-			log.Printf("Error fetching URL %v, err: %v. %v", url, err, logMessage)
-			time.Sleep(time.Second * time.Duration(h.retryDelay))
-			h.retryDelay = h.retryDelay * 2
+		}
+		if response != nil && response.StatusCode == http.StatusOK {
+			break
 		}
 	}
-	if response != nil {
-		defer response.Body.Close()
-		// do some swag shit with the links
-		return response, nil
-	}
-	return nil, errors.New("unable to fetch request")
+	return response, err
 }

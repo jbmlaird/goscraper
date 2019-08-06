@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 )
 
@@ -15,5 +16,8 @@ func main() {
 		log.Fatalf("URL supplied is in the incorrect format: %v, err: %v", urlToCrawl, err)
 	}
 
-	NewHttpClient(0, 0).fetchUrl(urlToCrawl)
+	httpClient := NewHttpClient(0, 0)
+	fmt.Println(httpClient)
+	// a, b := httpClient.fetchUrl(urlToCrawl)
+	// do some swag shit with the links when returned
 }
