@@ -71,4 +71,40 @@ func TestSitemapGenerator(t *testing.T) {
 			}
 		})
 	}
+
+	// Execute this with go test -race
+	t.Run("multiple threads do not cause race conditions reading and writing to sitemap", func(t *testing.T) {
+		sitemapGenerator := SitemapGenerator{}
+
+		links := []string{
+			"/help",
+			"/help/faq",
+			"/help/faq/question-one",
+			"/help/faq/question-two",
+			"/help/faq/question-three",
+			"/help/faq/question-four",
+		}
+
+		for i:=0; i<1000; i++ {
+			go func() {
+				for _, link := range links {
+					sitemapGenerator.addToSitemap(link)
+				}
+			}()
+		}
+
+		got := sitemapGenerator.returnSitemap()
+		want := []string{
+			"/help",
+			"/help/faq",
+			"/help/faq/question-four",
+			"/help/faq/question-one",
+			"/help/faq/question-three",
+			"/help/faq/question-two",
+		}
+
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("sitemap not in expected format. Got %v, wanted %v", got, want)
+		}
+	})
 }

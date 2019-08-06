@@ -6,19 +6,17 @@ import (
 
 func main() {
 	urlToCrawl := "https://monzo.com"
-	validUrl, err := verifyUrl(urlToCrawl)
+	_, err := verifyUrl(urlToCrawl)
 
 	// Could be using errors.Wrap here. Explore later.
 	if err != nil {
+		if err == errInvalidRegex {
+			log.Fatalf("URL supplied is in the incorrect format: %v, err: %v", urlToCrawl, err)
+		}
 		log.Fatalf("Error parsing given URL %v, err: %v", urlToCrawl, err)
-	} else if !validUrl {
-		log.Fatalf("URL supplied is in the incorrect format: %v, err: %v", urlToCrawl, err)
 	}
 
 	httpClient := NewHttpClient(3, 0, 1, 1)
-
-	//var wg sync.WaitGroup
-	//wg.Add()
 
 	response, err := httpClient.getUrl(urlToCrawl)
 	if err != nil {

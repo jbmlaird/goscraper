@@ -9,11 +9,11 @@ type RetryPolicy struct {
 }
 
 func (r *RetryPolicy) backoff() {
-	r.retries = r.retries * 2
+	r.retryDelaySeconds = r.retryDelaySeconds * 2
 }
 
 func (r *RetryPolicy) getRetryDelay() time.Duration {
-	return time.Second * time.Duration(r.retries)
+	return time.Second * time.Duration(r.retryDelaySeconds)
 }
 
 func (r *RetryPolicy) isFinalTry() bool {

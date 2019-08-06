@@ -17,7 +17,7 @@ func assertErrorMessage(t *testing.T, error error, want string) {
 	}
 }
 
-func assertOutput(t *testing.T, got, want bool) {
+func assertOutput(t *testing.T, got, want string) {
 	t.Helper()
 	if got != want {
 		t.Errorf("got %v but wanted %v", got, want)
