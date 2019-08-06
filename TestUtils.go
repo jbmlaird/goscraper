@@ -9,10 +9,11 @@ func assertNoError(t *testing.T, err error) {
 	}
 }
 
-func assertErrorMessage(t *testing.T, got string, want string) {
+func assertErrorMessage(t *testing.T, error error, want string) {
 	t.Helper()
-	if got != want {
-		t.Fatalf("got unexpected error message %v, wanted %v", got, want)
+	errorMessage := error.Error()
+	if errorMessage != want {
+		t.Fatalf("error unexpected error message %v, wanted %v", errorMessage, want)
 	}
 }
 

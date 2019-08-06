@@ -31,7 +31,7 @@ func TestURLFetcher(t *testing.T) {
 
 		_, err := httpClient.getUrl(ts.URL)
 
-		assertErrorMessage(t, err.Error(), fmt.Sprintf(errorMessage, ts.URL))
+		assertErrorMessage(t, err, fmt.Sprintf(errorMessage, ts.URL))
 		assertRetryValue(t, httpClient.retryPolicy.retries, 3)
 	})
 	// No unit test for timeout as that is not my code

@@ -16,6 +16,10 @@ func main() {
 	}
 
 	httpClient := NewHttpClient(3, 0, 1, 1)
+
+	//var wg sync.WaitGroup
+	//wg.Add()
+
 	response, err := httpClient.getUrl(urlToCrawl)
 	if err != nil {
 		log.Fatalf("failed to fetch URL: %v", urlToCrawl)
