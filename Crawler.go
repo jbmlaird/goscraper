@@ -23,7 +23,7 @@ func NewCrawler() *Crawler {
 	}
 }
 
-func (c *Crawler) crawlWebsite(hostname string) ([]string, error) {
+func (c *Crawler) buildSitemap(hostname string) ([]string, error) {
 	//crawledUrls := make(chan string)
 	// TODO: Handle error
 	responseBody, _ := c.getResponseBody(hostname)
@@ -61,7 +61,7 @@ func (c *Crawler) getResponseBody(url string) (io.ReadCloser, error) {
 	if err != nil {
 		// TODO: This shouldn't be fatal
 		// Just log that this URL failed and then retry?
-		log.Fatalf("failed to fetch URL: %v", hostname)
+		log.Printf("failed to fetch URL: %v", hostname)
 	}
 	if response != nil {
 		return response.Body, nil

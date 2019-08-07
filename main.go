@@ -19,7 +19,7 @@ func main() {
 	}
 
 	crawler := NewCrawler()
-	sitemap, err := crawler.crawlWebsite(hostname)
+	sitemap, err := crawler.buildSitemap(hostname)
 	if err != nil {
 		panic(errors.WithMessage(err, "unable to crawl URL"))
 	}
