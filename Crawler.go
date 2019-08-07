@@ -1,67 +1,64 @@
 package main
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"io"
 	"log"
+	"strings"
 	"sync"
 )
 
-type Crawler struct {
-	Client           *RetryHttpClient
-	crawledUrls      map[string]struct{}
-	sitemapGenerator SitemapGenerator
-	mu               sync.RWMutex
+type Crawler interface {
+	buildSitemap(hostname string) ([]string, error)
+	getResponseBody(url string) (io.ReadCloser, error)
+	alreadyCrawled(url string) bool
+	isSameDomain(url string) bool
 }
 
-func NewCrawler() *Crawler {
-	return &Crawler{
+type CrawlerImpl struct {
+	hostname       string
+	client         *RetryHttpClient
+	*CrawlerUrlChecker
+	sitemapBuilder SitemapBuilder
+	mu             sync.RWMutex
+}
+
+func NewCrawler(hostname string) *CrawlerImpl {
+	return &CrawlerImpl{
+		hostname,
 		NewRetryHttpClient(3, 0, 1, 10),
-		make(map[string]struct{}),
-		SitemapGenerator{},
+		NewCrawlerUrlTracker(),
+		SitemapBuilder{},
 		sync.RWMutex{},
 	}
 }
 
-func (c *Crawler) buildSitemap(hostname string) ([]string, error) {
-	//crawledUrls := make(chan string)
-	// TODO: Handle error
-	responseBody, _ := c.getResponseBody(hostname)
+var errDifferentDomain = errors.New("URL belongs to another domain")
+var errAlreadyCrawled = errors.New("already crawled URL")
 
-	if responseBody != nil {
-		// TODO: Handle error
-		urls, _ := findUrls(responseBody)
-		responseBody.Close()
-		for _, url := range urls {
-			c.sitemapGenerator.addToSitemap(url)
-		}
-	}
+func (c *CrawlerImpl) buildSitemap(hostname string) ([]string, error) {
+	// What if a goroutine fails against a certain URL? Remove it from the sitemap?
+	_ = c.request(hostname)
 
 	//select {
 	//// only add when it's finished
 	//case crawledUrl := <-crawledUrls:
 	//	// further handling
-	//	c.sitemapGenerator.addToSitemap(crawledUrl)
+	//	c.sitemapBuilder.addToSitemap(crawledUrl)
 	//case <-time.After(time.Second * 10):
 	//	return nil, nil
 	//}
-	return c.sitemapGenerator.returnSitemap(), nil
+	return c.sitemapBuilder.returnSitemap(), nil
 }
 
-func (c *Crawler) getResponseBody(url string) (io.ReadCloser, error) {
-	if c.alreadyCrawled(url) {
-		log.Printf("skipping url %v as already been crawled", url)
-		return nil, errors.New("already crawled")
-	}
-	c.mu.Lock()
-	c.crawledUrls[url] = struct{}{}
-	c.mu.Unlock()
+func (c *CrawlerImpl) getResponseBody(url string) (io.ReadCloser, error) {
+	c.addToCrawledUrls(url)
 
-	response, err := c.Client.getResponse(hostname)
+	response, err := c.client.getResponse(url)
 	if err != nil {
 		// TODO: This shouldn't be fatal
 		// Just log that this URL failed and then retry?
-		log.Printf("failed to fetch URL: %v", hostname)
+		return nil, errors.WithMessagef(err, "failed to fetch URL: %v", c.hostname)
 	}
 	if response != nil {
 		return response.Body, nil
@@ -69,12 +66,44 @@ func (c *Crawler) getResponseBody(url string) (io.ReadCloser, error) {
 	return nil, errors.New("unable to read response body")
 }
 
-func (c *Crawler) alreadyCrawled(url string) bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	_, ok := c.crawledUrls[url]
-	if !ok {
-		return false
+func (c *CrawlerImpl) request(url string) error {
+	if c.alreadyCrawled(url) {
+		log.Printf("skipping url %v as already been crawled", url)
+		return errAlreadyCrawled
 	}
-	return true
+	if !c.isSameDomain(url) {
+		log.Printf("skipping url %v as different domain", url)
+		return errDifferentDomain
+	}
+	log.Printf("crawling URL: %v", url)
+	responseBody, err := c.getResponseBody(url)
+	if err != nil {
+		// TODO: Is this all I need?
+		if err == errDifferentDomain || err == errAlreadyCrawled {
+			// ignore. Some URLs won't be required
+		} else {
+			return errors.WithMessagef(err, "unable to get response body for %v", url)
+		}
+	} else if responseBody != nil {
+		// TODO: Handle error
+		urls, _ := findUrls(responseBody)
+		responseBody.Close()
+		// check URLs are valid
+		// add to sitemap then begin request
+		for _, url := range urls {
+			// This is definitely wrong as it will add on this URL to external URLs
+			c.request(c.hostname + url)
+		}
+	}
+	return nil
+}
+
+func (c *CrawlerImpl) isSameDomain(url string) bool {
+	// split after then check prefix?
+	if (len(url) > 0 && url[0] == '/' && len(url) > 1) || strings.Contains(url, c.hostname) {
+		// this needs to be tested for when hostname = monzo.com and url = community.monzo.com
+		// you would need to ensure that the start of the string is empty
+		return true
+	}
+	return false
 }

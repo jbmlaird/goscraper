@@ -6,13 +6,13 @@ import (
 	"sync"
 )
 
-type SitemapGenerator struct {
+type SitemapBuilder struct {
 	sitemapLinks []string
 	mu sync.Mutex
 }
 
 // sitemapLinks is sorted afterwards so that sort.Search() can be called which must be called on a sorted slice
-func (s *SitemapGenerator) addToSitemap(link string) {
+func (s *SitemapBuilder) addToSitemap(link string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.contains(link) {
@@ -23,7 +23,9 @@ func (s *SitemapGenerator) addToSitemap(link string) {
 	}
 }
 
-func (s *SitemapGenerator) returnSitemap() []string {
+func (s *SitemapBuilder) returnSitemap() []string {
+	// TODO: Do I need these?
+	// This should only be called when everything has finished
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.sitemapLinks
@@ -31,10 +33,10 @@ func (s *SitemapGenerator) returnSitemap() []string {
 
 // This method is not directly tested because it's provided by the Golang documentation:
 // https://golang.org/pkg/sort/#SearchStrings calls https://golang.org/pkg/sort/#Search
-func (s *SitemapGenerator) contains(string string) bool {
+func (s *SitemapBuilder) contains(string string) bool {
 	// TODO: Not sure why mutex locking here causes the app to hang. Figure out why
-	// s.mu.Lock()
-	// defer s.mu.Unlock()
+	//s.mu.RLock()
+	//defer s.mu.RUnlock()
 	i := sort.SearchStrings(s.sitemapLinks, string)
 	return i < len(s.sitemapLinks) && s.sitemapLinks[i] == string
 }

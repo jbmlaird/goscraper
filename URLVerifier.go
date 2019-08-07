@@ -4,26 +4,33 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 )
-const hostname = "hostname"
+const (
+	protocol = "protocol"
+	hostname = "hostname"
+)
 var (
-	errInvalidRegex = errors.New("invalid regex")
-	validUrlRegex = fmt.Sprintf(`(?i)^(?:(https?|ftp|smtp)\:\/\/)?(?P<%v>[[:alnum:]]+\.[[:alnum:]]+(?:\.[[:alnum:]]+)?)$`, hostname)
+	errInvalidUrl = errors.New("invalid url")
+	validUrlRegex = fmt.Sprintf(`(?i)^(?P<%v>(https?|ftp|smtp)\:\/\/)?(?P<%v>[[:alnum:]]+\.[[:alnum:]]+(?:\.[[:alnum:]]+)?)$`, protocol, hostname)
 )
 
 func verifyHostname(url string) (string, error) {
 	regex := regexp.MustCompile(validUrlRegex)
 	res := regex.FindStringSubmatch(url)
+	validUrl := false
 
+	var sb strings.Builder
 	for i, name := range regex.SubexpNames() {
-		if name == hostname && res != nil && i < len(res) {
-			return res[i], nil
+		if (name == hostname || name == protocol) && res != nil && i < len(res) {
+			if name == hostname {
+				validUrl = true
+			}
+			sb.WriteString(res[i])
 		}
 	}
-	return "", errInvalidRegex
-}
-
-// TODO: Extract hostname function?
-func isSubdomain(hostname, subdomain string) bool {
-	return false
+	if validUrl {
+		return sb.String(), nil
+	}
+	return "", errInvalidUrl
 }

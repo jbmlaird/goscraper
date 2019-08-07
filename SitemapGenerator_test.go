@@ -59,7 +59,7 @@ func TestSitemapGenerator(t *testing.T) {
 
 	for _, test := range cases {
 		t.Run(test.Name, func(t *testing.T) {
-			sitemapGenerator := SitemapGenerator{}
+			sitemapGenerator := SitemapBuilder{}
 
 			for _, link := range test.Input {
 				sitemapGenerator.addToSitemap(link)
@@ -74,7 +74,7 @@ func TestSitemapGenerator(t *testing.T) {
 
 	// Execute this with go test -race
 	t.Run("multiple threads do not cause race conditions reading and writing to sitemap", func(t *testing.T) {
-		sitemapGenerator := SitemapGenerator{}
+		sitemapGenerator := SitemapBuilder{}
 
 		links := []string{
 			"/help",

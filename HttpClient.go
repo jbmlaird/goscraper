@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// Golang's standard library http.Client does not contain a retry policy
+// Golang's standard library http.client does not contain a retry policy
 type RetryHttpClient struct {
 	retryPolicy RetryPolicy
 	http.Client

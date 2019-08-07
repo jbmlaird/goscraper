@@ -10,7 +10,11 @@ To build:
 
 Improvements:
 
-* `http.Client`'s timeout behaviour is not tested since this belongs to the standard library.
-* Support absolute paths rather than just relative paths
+* If the user input an https protocol and the page has absolute paths with http, this will currently fail
 * `NewRetryHttpClientWithPolicy` :'(
-* Cancellation
+* Cancellation of requests
+
+Notes:
+
+* I over-engineered the initial URL checking according to the requirements. Should have just accepted a website with the
+HTTPS protocol like in the initial email
