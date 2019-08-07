@@ -5,12 +5,47 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
+type StubRetryPolicy struct {
+	maxRetries        int
+	retryCount        int
+	backoffCalls      int
+	retryDelayCalls   int
+	resetRetriesCalls int
+	finalTryCalls     int
+}
+
+func (s *StubRetryPolicy) backoff() {
+	s.backoffCalls++
+}
+
+func (s *StubRetryPolicy) getRetryDelay() time.Duration {
+	s.retryDelayCalls++
+	return 0
+}
+
+func (s *StubRetryPolicy) resetRetries() {
+	s.resetRetriesCalls++
+}
+
+func (s *StubRetryPolicy) isFinalTry(try int) bool {
+	s.finalTryCalls++
+	return s.maxRetries <= try
+}
+
+func (s *StubRetryPolicy) getMaxRetries() int {
+	return s.maxRetries
+}
+
 func TestURLFetcher(t *testing.T) {
-	t.Run("fetch URL no retries no body, return successful", func(t *testing.T) {
+	t.Run("fetch URL no maxRetries no body, return successful", func(t *testing.T) {
+		stubRetryPolicy := &StubRetryPolicy{
+			maxRetries: 3,
+		}
 		statusCode := http.StatusOK
-		httpClient := NewHttpClient(0, 0, 0, 0)
+		httpClient := NewRetryHttpClientWithPolicy(0, stubRetryPolicy)
 
 		ts := buildHttpServer(t, statusCode)
 		defer ts.Close()
@@ -19,20 +54,60 @@ func TestURLFetcher(t *testing.T) {
 
 		assertNoError(t, err)
 		assertStatusCode(t, response.StatusCode, statusCode)
-		assertRetryValue(t, httpClient.retryPolicy.retries, 0)
+		assertRetryValue(t, stubRetryPolicy.backoffCalls, 0)
+		assertRetryValue(t, stubRetryPolicy.resetRetriesCalls, 1)
 	})
 
-	t.Run("fetch URL 3 retries, fail, getRetryDelay 3 times, return 500 error", func(t *testing.T) {
-		statusCode := http.StatusInternalServerError
-		httpClient := NewHttpClient(3, 0, 0, 0)
+	t.Run("fail, no retries", func(t *testing.T) {
+		maxRetries := 0
+		stubRetryPolicy := &StubRetryPolicy{
+			maxRetries: maxRetries,
+		}
+		statusCode := http.StatusNotFound
+		httpClient := NewRetryHttpClientWithPolicy(0, stubRetryPolicy)
 
 		ts := buildHttpServer(t, statusCode)
 		defer ts.Close()
 
 		_, err := httpClient.getResponse(ts.URL)
 
-		assertErrorMessage(t, err, fmt.Sprintf(errorMessage, ts.URL))
-		assertRetryValue(t, httpClient.retryPolicy.retries, 3)
+		assertErrorMessage(t, err, fmt.Sprintf(errorMessage, ts.URL, statusCode))
+		assertRetryValue(t, stubRetryPolicy.backoffCalls, maxRetries)
+		assertRetryValue(t, stubRetryPolicy.resetRetriesCalls, 1)
+	})
+
+	t.Run("fetch URL 3 maxRetries, fail, getRetryDelay 3 times, return 500 error", func(t *testing.T) {
+		maxRetries := 3
+		stubRetryPolicy := &StubRetryPolicy{
+			maxRetries: maxRetries,
+		}
+		statusCode := http.StatusInternalServerError
+		httpClient := NewRetryHttpClientWithPolicy(0, stubRetryPolicy)
+
+		ts := buildHttpServer(t, statusCode)
+		defer ts.Close()
+
+		_, err := httpClient.getResponse(ts.URL)
+
+		assertErrorMessage(t, err, fmt.Sprintf(errorMessage, ts.URL, statusCode))
+		assertRetryValue(t, stubRetryPolicy.backoffCalls, maxRetries)
+	})
+
+	t.Run("failing twice resets retry count between calls", func(t *testing.T) {
+		maxRetries := 3
+		stubRetryPolicy := &StubRetryPolicy{
+			maxRetries: maxRetries,
+		}
+		statusCode := http.StatusInternalServerError
+		httpClient := NewRetryHttpClientWithPolicy(0, stubRetryPolicy)
+
+		ts := buildHttpServer(t, statusCode)
+		defer ts.Close()
+
+		_, err := httpClient.getResponse(ts.URL)
+
+		assertErrorMessage(t, err, fmt.Sprintf(errorMessage, ts.URL, statusCode))
+		assertRetryValue(t, stubRetryPolicy.backoffCalls, maxRetries)
 	})
 	// No unit test for timeout as that is not my code
 }

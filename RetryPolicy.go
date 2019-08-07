@@ -2,20 +2,36 @@ package main
 
 import "time"
 
-type RetryPolicy struct {
-	retries           int
-	retryCount        int
-	retryDelaySeconds int
+type RetryPolicy interface {
+	backoff()
+	resetRetries()
+	isFinalTry(try int) bool
+	getRetryDelay() time.Duration
+	getMaxRetries() int
 }
 
-func (r *RetryPolicy) backoff() {
-	r.retryDelaySeconds = r.retryDelaySeconds * 2
+type ProdRetryPolicy struct {
+	maxRetries               int
+	initialRetryDelaySeconds int
+	retryDelaySeconds        int
 }
 
-func (r *RetryPolicy) getRetryDelay() time.Duration {
-	return time.Second * time.Duration(r.retryDelaySeconds)
+func (p *ProdRetryPolicy) backoff() {
+	p.retryDelaySeconds = p.retryDelaySeconds * 2
 }
 
-func (r *RetryPolicy) isFinalTry() bool {
-	return r.retries >= r.retryCount
+func (p *ProdRetryPolicy) resetRetries() {
+	p.retryDelaySeconds = p.initialRetryDelaySeconds
+}
+
+func (p *ProdRetryPolicy) isFinalTry(try int) bool {
+	return p.maxRetries <= try
+}
+
+func (p *ProdRetryPolicy) getRetryDelay() time.Duration {
+	return time.Second * time.Duration(p.retryDelaySeconds)
+}
+
+func (p *ProdRetryPolicy) getMaxRetries() int {
+	return p.maxRetries
 }

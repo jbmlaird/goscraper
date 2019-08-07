@@ -13,11 +13,10 @@ type RetryHttpClient struct {
 	http.Client
 }
 
-func NewHttpClient(retries, retryCount, retryDelay, timeoutSeconds int) *RetryHttpClient {
+func NewRetryHttpClient(retries, retryCount, retryDelay, timeoutSeconds int) *RetryHttpClient {
 	return &RetryHttpClient{
-		RetryPolicy{
-			retries:           retries,
-			retryCount:        retryCount,
+		&ProdRetryPolicy{
+			maxRetries:        retries,
 			retryDelaySeconds: retryDelay,
 		},
 		http.Client{
@@ -26,14 +25,25 @@ func NewHttpClient(retries, retryCount, retryDelay, timeoutSeconds int) *RetryHt
 	}
 }
 
-const errorMessage = "Error fetching URL %v"
+// Had to create this to provide a stub retry policy. I don't like this.
+func NewRetryHttpClientWithPolicy(timeoutSeconds int, retryPolicy RetryPolicy) *RetryHttpClient {
+	return &RetryHttpClient{
+		retryPolicy,
+		http.Client{
+			Timeout: time.Second * time.Duration(timeoutSeconds),
+		},
+	}
+}
+
+const errorMessage = "Unable to fetch URL %v with status code %v"
 
 func (r *RetryHttpClient) getResponse(url string) (*http.Response, error) {
 	var (
 		response *http.Response
 		err      error
 	)
-	for r.retryPolicy.retryCount = 0; r.retryPolicy.retryCount <= r.retryPolicy.retries; r.retryPolicy.retryCount++ {
+	defer r.retryPolicy.resetRetries()
+	for i := 0; i < r.retryPolicy.getMaxRetries()+1; i++ {
 		response, err = r.Get(url)
 		if err != nil {
 			return nil, err
@@ -41,17 +51,15 @@ func (r *RetryHttpClient) getResponse(url string) (*http.Response, error) {
 		if response != nil {
 			if response.StatusCode == http.StatusOK {
 				break
-			} else {
+			}
+			if r.retryPolicy.isFinalTry(i) {
 				response.Body.Close()
-				if r.retryPolicy.isFinalTry() {
-					return nil, errors.Errorf(errorMessage, url)
-				} else {
-					log.Printf("Error fetching URL: %v", url)
-					time.Sleep(r.retryPolicy.getRetryDelay())
-					r.retryPolicy.backoff()
-				}
+				return nil, errors.Errorf(errorMessage, url, response.StatusCode)
 			}
 		}
+		log.Printf("Error fetching URL: %v", url)
+		time.Sleep(r.retryPolicy.getRetryDelay())
+		r.retryPolicy.backoff()
 	}
 	return response, nil
 }
