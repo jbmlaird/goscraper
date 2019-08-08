@@ -39,7 +39,7 @@ var errAlreadyCrawled = errors.New("already crawled URL")
 var errSingleCharacter = errors.New("URL is only a single character")
 
 func (c *CrawlerImpl) buildSitemap(urlToCrawl string) ([]string, error) {
-	hostname, err := c.urlManipulator.verifyBaseUrl(urlToCrawl)
+	err := c.urlManipulator.verifyBaseUrl(urlToCrawl)
 	if err != nil {
 		if err == errInvalidBaseUrl {
 			return nil, errors.Wrapf(err, "URL supplied is in the incorrect format: %v", urlToCrawl)
@@ -48,7 +48,7 @@ func (c *CrawlerImpl) buildSitemap(urlToCrawl string) ([]string, error) {
 	}
 
 	var wg sync.WaitGroup
-	_ = c.request(hostname, &wg)
+	_ = c.request(urlToCrawl, &wg)
 	wg.Wait()
 	return c.sitemapBuilder.returnSitemap(), nil
 }

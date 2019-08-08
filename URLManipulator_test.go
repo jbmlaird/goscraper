@@ -55,9 +55,8 @@ func TestVerifyUrl(t *testing.T) {
 	for _, test := range successCases {
 		t.Run(test.Name, func(t *testing.T) {
 			urlManipulator := NewUrlManipulator()
-			got, err := urlManipulator.verifyBaseUrl(test.URL)
+			err := urlManipulator.verifyBaseUrl(test.URL)
 			assertNoError(t, err)
-			assertStringOutput(t, got, test.Hostname)
 		})
 	}
 
@@ -96,7 +95,7 @@ func TestVerifyUrl(t *testing.T) {
 	for _, test := range errorCases {
 		t.Run(test.Name, func(t *testing.T) {
 			urlManipulator := NewUrlManipulator()
-			_, err := urlManipulator.verifyBaseUrl(test.URL)
+			err := urlManipulator.verifyBaseUrl(test.URL)
 			assertErrorMessage(t, err, errInvalidBaseUrl.Error())
 		})
 	}

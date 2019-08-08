@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strings"
 )
 
 type URLManipulator struct {
@@ -31,27 +30,25 @@ var (
 	validUrlRegex     = fmt.Sprintf(`(?i)^%v%v\/?%v$`, protocolRegex, hostnameRegex, pathRegex)
 )
 
-func (u *URLManipulator) verifyBaseUrl(url string) (string, error) {
+func (u *URLManipulator) verifyBaseUrl(url string) error {
 	baseUrlRes := u.urlRegex.FindStringSubmatch(url)
 	validBaseUrl := false
 
-	var sb strings.Builder
 	for i, name := range u.urlRegex.SubexpNames() {
 		// Shouldn't need the final check. I think my regex is misbehaving
 		if name == pathCapGroup && baseUrlRes != nil && i < len(baseUrlRes) && baseUrlRes[i] != "" {
-			return "", errInvalidBaseUrl
+			return errInvalidBaseUrl
 		}
 		if (name == hostnameCapGroup || name == protocolCapGroup) && baseUrlRes != nil && i < len(baseUrlRes) {
 			if name == hostnameCapGroup {
 				validBaseUrl = true
 			}
-			sb.WriteString(baseUrlRes[i])
 		}
 	}
 	if validBaseUrl {
-		return sb.String(), nil
+		return nil
 	}
-	return "", errInvalidBaseUrl
+	return errInvalidBaseUrl
 }
 
 func (u *URLManipulator) checkSameDomain(url, baseUrl string) error {
