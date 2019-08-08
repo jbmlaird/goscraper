@@ -104,11 +104,7 @@ func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) error {
 }
 
 func (c *CrawlerImpl) addToCrawledUrlsIfUncrawled(url string) error {
-	err := c.urlManipulator.checkSameDomain(url, c.hostnameWithProtocol)
-	if err != nil {
-		return errors.Wrapf(err, "%v is a different domain", url)
-	}
-	err = c.isAlreadyCrawled(url)
+	err := c.isAlreadyCrawled(url)
 	if err != nil {
 		log.Printf("%v has already been crawled", url)
 		return errAlreadyCrawled
