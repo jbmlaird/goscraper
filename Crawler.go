@@ -20,7 +20,7 @@ type CrawlerImpl struct {
 	client               *RetryHttpClient
 	*CrawlerUrlChecker
 	sitemapBuilder SitemapBuilder
-	mu             sync.RWMutex
+	mu             sync.Mutex
 	chanErr chan error
 	goRoutineErrors []error
 }
@@ -32,7 +32,7 @@ func NewCrawler(hostname string) *CrawlerImpl {
 		NewRetryHttpClient(3, 0, 1, 10),
 		NewCrawlerUrlTracker(),
 		SitemapBuilder{},
-		sync.RWMutex{},
+		sync.Mutex{},
 		make(chan error),
 		[]error{},
 	}
@@ -51,7 +51,6 @@ func (c *CrawlerImpl) buildSitemap(urlToCrawl string) ([]string, error) {
 		return nil, errors.Wrapf(err, "Error parsing given URL %v", urlToCrawl)
 	}
 
-	// What if a goroutine fails against a certain URL? Remove it from the sitemap?
 	var wg sync.WaitGroup
 	go c.saveErrChan()
 	wg.Add(1)
@@ -109,7 +108,6 @@ func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) {
 		c.chanErr<-errors.Wrapf(err, "unable to close response body from cleaned URL %v, original URL %v", cleanedUrl, url)
 		return
 	}
-	log.Printf("Adding to waitgroup: %v", len(urls))
 	wg.Add(len(urls))
 	for _, url := range urls {
 		go c.request(url, wg)
