@@ -14,5 +14,6 @@ Improvements:
 
 Notes:
 
-* WaitGroup hangs forever in this channels version
+* Hangs forever on this channels version. Due to receiving channels blocking forever until the message is processed
+    * going to have to think about how to handle this
 * Didn't know Go a month ago :'(

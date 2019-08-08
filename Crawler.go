@@ -77,43 +77,37 @@ func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) {
 	if err != nil {
 		c.chanErr<-errors.Wrapf(err, "invalid URL passed to clean URL: %v", url)
 		return
-		//return errors.Wrapf(err, "invalid URL passed to clean URL: %v", url)
 	}
 	err = c.urlManipulator.checkSameDomain(cleanedUrl, c.hostnameWithProtocol)
 	if err != nil {
 		c.chanErr<-errors.Wrapf(err, "%v is a different domain, original URL: %v", cleanedUrl, url)
 		return
-		//return errors.Wrapf(err, "%v is a different domain, original URL: %v", cleanedUrl, url)
 	}
 	err = c.addToCrawledUrlsIfUncrawled(cleanedUrl)
 	if err != nil {
 		c.chanErr<-errors.Wrapf(err, "skipping cleaned url %v, original url %v", cleanedUrl, url)
 		return
-		//return errors.Wrapf(err, "skipping cleaned url %v, original url %v", cleanedUrl, url)
 	}
 	log.Printf("crawling cleaned URL: %v, original URL: %v", cleanedUrl, url)
 	responseBody, err := c.getResponseBody(cleanedUrl)
 	if err != nil {
 		c.chanErr<-errors.Wrapf(err, "skipping cleaned url %v, original url %v", cleanedUrl, url)
 		return
-		//return errors.Wrapf(err, "unable to get response body for cleaned URL %v, original URL %v", cleanedUrl, url)
 	}
 	c.sitemapBuilder.addToSitemap(cleanedUrl)
 	urls, err := findUrls(responseBody)
 	if err != nil {
 		c.chanErr<-errors.Wrapf(err, "unable to find any URLs for cleaned URL %v, original URL: %v", cleanedUrl, url)
 		return
-		//return errors.Wrapf(err, "unable to find any URLs for cleaned URL %v, original URL: %v", cleanedUrl, url)
 	}
 	err = responseBody.Close()
 	if err != nil {
 		c.chanErr<-errors.Wrapf(err, "unable to close response body from cleaned URL %v, original URL %v", cleanedUrl, url)
 		return
-		//return errors.Wrapf(err, "unable to close response body from cleaned URL %v, original URL %v", cleanedUrl, url)
 	}
+	log.Printf("Adding to waitgroup: %v", len(urls))
 	wg.Add(len(urls))
 	for _, url := range urls {
-		// TODO: Handle error for Goroutine
 		go c.request(url, wg)
 	}
 }
