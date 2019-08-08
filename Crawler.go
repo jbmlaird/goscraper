@@ -21,6 +21,7 @@ type CrawlerImpl struct {
 	*CrawlerUrlChecker
 	sitemapBuilder SitemapBuilder
 	mu             sync.RWMutex
+	chanErr chan error
 }
 
 func NewCrawler(hostname string) *CrawlerImpl {
@@ -31,6 +32,7 @@ func NewCrawler(hostname string) *CrawlerImpl {
 		NewCrawlerUrlTracker(),
 		SitemapBuilder{},
 		sync.RWMutex{},
+		make(chan error),
 	}
 }
 
@@ -49,10 +51,11 @@ func (c *CrawlerImpl) buildSitemap(urlToCrawl string) ([]string, error) {
 
 	// What if a goroutine fails against a certain URL? Remove it from the sitemap?
 	var wg sync.WaitGroup
-	wg.Add(1)
-	_ = c.request(hostname, &wg)
-	wg.Done()
+	c.request(hostname, &wg)
 	wg.Wait()
+	for err := range c.chanErr {
+		log.Printf("goroutine failed with: %v", err)
+	}
 	return c.sitemapBuilder.returnSitemap(), nil
 }
 
@@ -67,41 +70,51 @@ func (c *CrawlerImpl) getResponseBody(url string) (io.ReadCloser, error) {
 	return nil, errors.Errorf("unable to read response body for URL %v", url)
 }
 
-func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) error {
+func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	cleanedUrl, err := cleanUrl(url, c.hostnameWithProtocol)
 	if err != nil {
-		return errors.Wrapf(err, "invalid URL passed to clean URL: %v", url)
+		c.chanErr<-errors.Wrapf(err, "invalid URL passed to clean URL: %v", url)
+		return
+		//return errors.Wrapf(err, "invalid URL passed to clean URL: %v", url)
 	}
 	// TODO: WaitGroup crashes if this code is here rather than in the addToCrawledUrlsIfUncrawled method
-	//err = c.urlManipulator.checkSameDomain(url, c.hostnameWithProtocol)
+	// no idea why
+	/*err = c.urlManipulator.checkSameDomain(url, c.hostnameWithProtocol)
 	//if err != nil {
 	//	return errors.Wrapf(err, "%v is a different domain, original URL: %v", cleanedUrl, url)
-	//}
+	}*/
 	err = c.addToCrawledUrlsIfUncrawled(cleanedUrl)
 	if err != nil {
-		return errors.Wrapf(err, "skipping cleaned url %v, original url %v", cleanedUrl, url)
+		c.chanErr<-errors.Wrapf(err, "skipping cleaned url %v, original url %v", cleanedUrl, url)
+		return
+		//return errors.Wrapf(err, "skipping cleaned url %v, original url %v", cleanedUrl, url)
 	}
 	log.Printf("crawling cleaned URL: %v, original URL: %v", cleanedUrl, url)
 	responseBody, err := c.getResponseBody(cleanedUrl)
 	if err != nil {
-		return errors.Wrapf(err, "unable to get response body for cleaned URL %v, original URL %v", cleanedUrl, url)
+		c.chanErr<-errors.Wrapf(err, "skipping cleaned url %v, original url %v", cleanedUrl, url)
+		return
+		//return errors.Wrapf(err, "unable to get response body for cleaned URL %v, original URL %v", cleanedUrl, url)
 	}
 	c.sitemapBuilder.addToSitemap(cleanedUrl)
 	urls, err := findUrls(responseBody)
 	if err != nil {
-		return errors.Wrapf(err, "unable to find any URLs for cleaned URL %v, original URL: %v", cleanedUrl, url)
+		c.chanErr<-errors.Wrapf(err, "unable to find any URLs for cleaned URL %v, original URL: %v", cleanedUrl, url)
+		return
+		//return errors.Wrapf(err, "unable to find any URLs for cleaned URL %v, original URL: %v", cleanedUrl, url)
 	}
 	err = responseBody.Close()
 	if err != nil {
-		return errors.Wrapf(err, "unable to close response body from cleaned URL %v, original URL %v", cleanedUrl, url)
+		c.chanErr<-errors.Wrapf(err, "unable to close response body from cleaned URL %v, original URL %v", cleanedUrl, url)
+		return
+		//return errors.Wrapf(err, "unable to close response body from cleaned URL %v, original URL %v", cleanedUrl, url)
 	}
-	wg.Add(len(urls))
+	log.Printf("adding waitgroup: %d", len(urls))
 	for _, url := range urls {
 		// TODO: Handle error for Goroutine
 		go c.request(url, wg)
 	}
-	return nil
 }
 
 func (c *CrawlerImpl) addToCrawledUrlsIfUncrawled(url string) error {
@@ -111,8 +124,7 @@ func (c *CrawlerImpl) addToCrawledUrlsIfUncrawled(url string) error {
 	}
 	err = c.isAlreadyCrawled(url)
 	if err != nil {
-		log.Printf("%v has already been crawled", url)
-		return errAlreadyCrawled
+		return errors.Wrapf(err, "%v has already been crawled", url)
 	}
 	return nil
 }
