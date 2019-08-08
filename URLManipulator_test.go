@@ -55,7 +55,7 @@ func TestVerifyUrl(t *testing.T) {
 	for _, test := range successCases {
 		t.Run(test.Name, func(t *testing.T) {
 			urlManipulator := NewUrlManipulator()
-			got, err := urlManipulator.verifyHostname(test.URL)
+			got, err := urlManipulator.verifyBaseUrl(test.URL)
 			assertNoError(t, err)
 			assertStringOutput(t, got, test.Hostname)
 		})
@@ -69,25 +69,35 @@ func TestVerifyUrl(t *testing.T) {
 		{
 			"fail URL with made up protocol",
 			"monzo://monzo.com",
-			errInvalidUrl,
+			errInvalidBaseUrl,
 		},
 		{
 			"fail URL without domain extension",
 			"monzo.",
-			errInvalidUrl,
+			errInvalidBaseUrl,
+		},
+		{
+			"fail URL that's empty",
+			"",
+			errInvalidBaseUrl,
 		},
 		{
 			"fail URL that's not the root",
 			"monzo.com/help",
-			errInvalidUrl,
+			errInvalidBaseUrl,
+		},
+		{
+			"fail URL that's not alpha numeric",
+			"sd0_93hj$£%^.com/help",
+			errInvalidBaseUrl,
 		},
 	}
 
 	for _, test := range errorCases {
 		t.Run(test.Name, func(t *testing.T) {
 			urlManipulator := NewUrlManipulator()
-			_, err := urlManipulator.verifyHostname(test.URL)
-			assertErrorMessage(t, err, errInvalidUrl.Error())
+			_, err := urlManipulator.verifyBaseUrl(test.URL)
+			assertErrorMessage(t, err, errInvalidBaseUrl.Error())
 		})
 	}
 }
@@ -128,21 +138,26 @@ func TestIsSameDomain(t *testing.T) {
 		Name       string
 		Hostname   string
 		UrlToCheck string
+		Want       string
 	}{
 		{"checkSameDomain absolute path returns true",
 			"https://www.monzo.com",
+			"https://www.monzo.com/help",
 			"https://www.monzo.com/help",
 		},
 		{"checkSameDomain relative path returns true",
 			"https://www.monzo.com",
 			"/help",
+			"https://www.monzo.com/help",
 		},
 	}
 
 	for _, test := range isSameDomainNoErrorCases {
 		t.Run(test.Name, func(t *testing.T) {
 			urlManipulator := NewUrlManipulator()
-			assertNoError(t, urlManipulator.checkSameDomain(test.UrlToCheck, test.Hostname))
+			got, err := urlManipulator.checkSameDomain(test.UrlToCheck, test.Hostname)
+			assertNoError(t, err)
+			assertStringOutput(t, got, test.Want)
 		})
 	}
 
@@ -151,15 +166,15 @@ func TestIsSameDomain(t *testing.T) {
 		Hostname   string
 		UrlToCheck string
 	}{
-		{"checkSameDomain different domain returns false",
+		{"checkSameDomain different domain returns error",
 			"https://www.monzo.com",
 			"https://www.monzo.co.uk/help",
 		},
-		{"checkSameDomain homepage returns false",
+		{"checkSameDomain homepage returns error",
 			"https://www.monzo.com",
 			"/",
 		},
-		{"checkSameDomain empty returns false",
+		{"checkSameDomain empty returns error",
 			"https://www.monzo.com",
 			"",
 		},
@@ -168,7 +183,9 @@ func TestIsSameDomain(t *testing.T) {
 	for _, test := range isSameDomainErrorCases {
 		t.Run(test.Name, func(t *testing.T) {
 			urlManipulator := NewUrlManipulator()
-			assertErrorMessage(t, urlManipulator.checkSameDomain(test.UrlToCheck, test.Hostname), errDifferentDomain.Error())
+			got, err := urlManipulator.checkSameDomain(test.UrlToCheck, test.Hostname)
+			assertErrorMessage(t, err, errDifferentDomain.Error())
+			assertStringOutput(t, got, "")
 		})
 	}
 }

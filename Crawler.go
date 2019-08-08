@@ -88,9 +88,7 @@ func (c *CrawlerImpl) addToCrawledUrlsIfUncrawled(url string) (string, error) {
 	if len(url) <= 1 {
 		return "", errSingleCharacter
 	}
-	url = addHostnameAndProtocolToRelativeUrls(url, c.hostnameWithProtocol)
-	url = addHttpsIfNecessary(url)
-	err := c.urlManipulator.checkSameDomain(url, c.hostnameWithProtocol)
+	formattedUrl, err := c.urlManipulator.checkSameDomain(url, c.hostnameWithProtocol)
 	if err != nil {
 		log.Printf("%v is a different domain", url)
 		return "", errDifferentDomain
@@ -100,5 +98,5 @@ func (c *CrawlerImpl) addToCrawledUrlsIfUncrawled(url string) (string, error) {
 		log.Printf("%v has already been crawled", url)
 		return "", errAlreadyCrawled
 	}
-	return url, nil
+	return formattedUrl, nil
 }

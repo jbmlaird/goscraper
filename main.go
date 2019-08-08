@@ -11,11 +11,11 @@ func main() {
 	start := time.Now()
 	urlToCrawl := "https://monzo.com"
 	urlManipulator := NewUrlManipulator()
-	hostname, err := urlManipulator.verifyHostname(urlToCrawl)
+	hostname, err := urlManipulator.verifyBaseUrl(urlToCrawl)
 
 	// Could be using errors.Wrap here. Explore later.
 	if err != nil {
-		if err == errInvalidUrl {
+		if err == errInvalidBaseUrl {
 			log.Fatalf("URL supplied is in the incorrect format: %v, err: %v", urlToCrawl, err)
 		}
 		log.Fatalf("Error parsing given URL %v, err: %v", urlToCrawl, err)

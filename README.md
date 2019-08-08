@@ -14,7 +14,8 @@ Improvements:
 * `NewRetryHttpClientWithPolicy` :'(
 * Cancellation of requests
 * `/` is a different domain error needs to be fixed. Instead be, `this is the homepage`
-* `#` links
+* Strip things after `#`
+* Stop crawling URLs twice (or sitemapping) if they end in a slash and when they don't
 * Fix Twitter links appearing
 
 Notes:

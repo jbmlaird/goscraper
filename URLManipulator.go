@@ -14,38 +14,45 @@ type URLManipulator struct {
 func NewUrlManipulator() *URLManipulator {
 	return &URLManipulator{
 		regexp.MustCompile(validUrlRegex),
+		//regexp.MustCompile(oldValidUrlRegex),
 	}
 }
 
 const (
 	protocol = "protocol"
 	hostname = "hostnameWithProtocol"
+	path     = "path"
 )
 
 var (
-	errInvalidUrl = errors.New("invalid url")
-	protocolRegex = fmt.Sprintf(`(?i)^(?P<%v>(https?|ftp|smtp)\:\/\/)?`, protocol)
-	hostnameRegex = fmt.Sprintf(`(?P<%v>[[:alnum:]]+\.[[:alnum:]]+(?:\.[[:alnum:]]+)?)`, hostname)
-	validUrlRegex = fmt.Sprintf(`%v%v\/?$`, protocolRegex, hostnameRegex)
+	errInvalidBaseUrl = errors.New("invalid base url")
+	protocolRegex     = fmt.Sprintf(`(?P<%v>(https?|ftp|smtp)\:\/\/)?`, protocol)
+	hostnameRegex     = fmt.Sprintf(`(?P<%v>[[:alnum:]]+\.[[:alnum:]]+(?:\.[[:alnum:]]+)?)`, hostname)
+	pathRegex         = fmt.Sprintf(`(?P<%v>\/.*)?`, path)
+	validUrlRegex     = fmt.Sprintf(`(?i)^%v%v\/?%v$`, protocolRegex, hostnameRegex, pathRegex)
 )
 
-func (u *URLManipulator) verifyHostname(url string) (string, error) {
-	res := u.urlRegex.FindStringSubmatch(url)
-	validUrl := false
+func (u *URLManipulator) verifyBaseUrl(url string) (string, error) {
+	baseUrlRes := u.urlRegex.FindStringSubmatch(url)
+	validBaseUrl := false
 
 	var sb strings.Builder
 	for i, name := range u.urlRegex.SubexpNames() {
-		if (name == hostname || name == protocol) && res != nil && i < len(res) {
+		// Shouldn't need the final check. I think my regex is misbehaving
+		if name == path && baseUrlRes != nil && i < len(baseUrlRes) && baseUrlRes[i] != "" {
+			return "", errInvalidBaseUrl
+		}
+		if (name == hostname || name == protocol) && baseUrlRes != nil && i < len(baseUrlRes) {
 			if name == hostname {
-				validUrl = true
+				validBaseUrl = true
 			}
-			sb.WriteString(res[i])
+			sb.WriteString(baseUrlRes[i])
 		}
 	}
-	if validUrl {
+	if validBaseUrl {
 		return sb.String(), nil
 	}
-	return "", errInvalidUrl
+	return "", errInvalidBaseUrl
 }
 
 func addHttpsIfNecessary(url string) string {
@@ -64,31 +71,25 @@ func addHostnameAndProtocolToRelativeUrls(url, hostnameWithProtocol string) stri
 }
 
 // URLs passed into this will always have a hostnameWithProtocol prefix
-func (u *URLManipulator) checkSameDomain(url, hostname string) error {
+func (u *URLManipulator) checkSameDomain(url, baseUrl string) (modifiedUrl string, err error) {
+	modifiedUrl = addHostnameAndProtocolToRelativeUrls(url, baseUrl)
+	modifiedUrl = addHttpsIfNecessary(modifiedUrl)
+
+	urlHostname := u.findHostname(modifiedUrl)
+	baseUrlHostname := u.findHostname(baseUrl)
+
+	if urlHostname == baseUrlHostname {
+		return modifiedUrl, nil
+	}
+	return "", errDifferentDomain
+}
+
+func (u *URLManipulator) findHostname(url string) (extractedHostname string) {
 	urlRes := u.urlRegex.FindStringSubmatch(url)
-
-	var urlHostname string
-	var hostnameHostname string
-
 	for i, name := range u.urlRegex.SubexpNames() {
 		if (name == hostname) && urlRes != nil && i < len(urlRes) {
-			if name == hostname {
-				urlHostname = urlRes[i]
-			}
+			extractedHostname = urlRes[i]
 		}
 	}
-
-	hostnameRes := u.urlRegex.FindStringSubmatch(hostname)
-	for i, name := range u.urlRegex.SubexpNames() {
-		if (name == hostname) && urlRes != nil && i < len(urlRes) {
-			if name == hostname {
-				hostnameHostname = hostnameRes[i]
-			}
-		}
-	}
-
-	if urlHostname == hostnameHostname {
-		return nil
-	}
-	return errDifferentDomain
+	return
 }
