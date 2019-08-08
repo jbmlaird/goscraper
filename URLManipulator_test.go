@@ -11,27 +11,27 @@ func TestVerifyUrl(t *testing.T) {
 		Hostname string
 	}{
 		{
-			"verify valid URL without protocol",
+			"verify valid URL without protocolCapGroup",
 			"monzo.com",
 			"monzo.com",
 		},
 		{
-			"verify valid URL http protocol",
+			"verify valid URL http protocolCapGroup",
 			"http://monzo.com",
 			"http://monzo.com",
 		},
 		{
-			"verify valid URL https protocol",
+			"verify valid URL https protocolCapGroup",
 			"https://monzo.com",
 			"https://monzo.com",
 		},
 		{
-			"verify valid URL ftp protocol",
+			"verify valid URL ftp protocolCapGroup",
 			"ftp://monzo.com",
 			"ftp://monzo.com",
 		},
 		{
-			"verify valid URL smtp protocol",
+			"verify valid URL smtp protocolCapGroup",
 			"smtp://monzo.com",
 			"smtp://monzo.com",
 		},
@@ -67,7 +67,7 @@ func TestVerifyUrl(t *testing.T) {
 		Hostname error
 	}{
 		{
-			"fail URL with made up protocol",
+			"fail URL with made up protocolCapGroup",
 			"monzo://monzo.com",
 			errInvalidBaseUrl,
 		},
@@ -102,37 +102,6 @@ func TestVerifyUrl(t *testing.T) {
 	}
 }
 
-func TestAddHttpsIfNecessary(t *testing.T) {
-	cases := []struct {
-		Name  string
-		Input string
-		Want  string
-	}{
-		{
-			"adds https:// to blank protocol",
-			"google.com",
-			"https://google.com",
-		},
-		{
-			"doesn't add https:// to https://",
-			"https://google.com",
-			"https://google.com",
-		},
-		{
-			"doesn't add https:// to http://",
-			"http://google.com",
-			"http://google.com",
-		},
-	}
-
-	for _, test := range cases {
-		t.Run(test.Name, func(t *testing.T) {
-			got := addHttpsIfNecessary(test.Input)
-			assertStringOutput(t, got, test.Want)
-		})
-	}
-}
-
 func TestIsSameDomain(t *testing.T) {
 	isSameDomainNoErrorCases := []struct {
 		Name       string
@@ -140,14 +109,10 @@ func TestIsSameDomain(t *testing.T) {
 		UrlToCheck string
 		Want       string
 	}{
-		{"checkSameDomain absolute path returns true",
+		{
+			"checkSameDomain absolute path returns no error",
 			"https://www.monzo.com",
 			"https://www.monzo.com/help",
-			"https://www.monzo.com/help",
-		},
-		{"checkSameDomain relative path returns true",
-			"https://www.monzo.com",
-			"/help",
 			"https://www.monzo.com/help",
 		},
 	}
@@ -155,9 +120,8 @@ func TestIsSameDomain(t *testing.T) {
 	for _, test := range isSameDomainNoErrorCases {
 		t.Run(test.Name, func(t *testing.T) {
 			urlManipulator := NewUrlManipulator()
-			got, err := urlManipulator.checkSameDomain(test.UrlToCheck, test.Hostname)
+			err := urlManipulator.checkSameDomain(test.UrlToCheck, test.Hostname)
 			assertNoError(t, err)
-			assertStringOutput(t, got, test.Want)
 		})
 	}
 
@@ -166,26 +130,33 @@ func TestIsSameDomain(t *testing.T) {
 		Hostname   string
 		UrlToCheck string
 	}{
-		{"checkSameDomain different domain returns error",
+		{
+			"checkSameDomain different domain returns error",
 			"https://www.monzo.com",
 			"https://www.monzo.co.uk/help",
 		},
-		{"checkSameDomain homepage returns error",
+		{
+			"checkSameDomain relative homepage returns error",
 			"https://www.monzo.com",
 			"/",
 		},
-		{"checkSameDomain empty returns error",
+		{
+			"checkSameDomain empty returns error",
 			"https://www.monzo.com",
 			"",
+		},
+		{
+			"checkSameDomain relative path returns no error",
+			"https://www.monzo.com",
+			"/help",
 		},
 	}
 
 	for _, test := range isSameDomainErrorCases {
 		t.Run(test.Name, func(t *testing.T) {
 			urlManipulator := NewUrlManipulator()
-			got, err := urlManipulator.checkSameDomain(test.UrlToCheck, test.Hostname)
+			err := urlManipulator.checkSameDomain(test.UrlToCheck, test.Hostname)
 			assertErrorMessage(t, err, errDifferentDomain.Error())
-			assertStringOutput(t, got, "")
 		})
 	}
 }
