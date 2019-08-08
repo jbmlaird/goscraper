@@ -47,11 +47,8 @@ func (c *CrawlerImpl) buildSitemap(urlToCrawl string) ([]string, error) {
 		return nil, errors.Wrapf(err, "Error parsing given URL %v", urlToCrawl)
 	}
 
-	// What if a goroutine fails against a certain URL? Remove it from the sitemap?
 	var wg sync.WaitGroup
-	wg.Add(1)
 	_ = c.request(hostname, &wg)
-	wg.Done()
 	wg.Wait()
 	return c.sitemapBuilder.returnSitemap(), nil
 }
