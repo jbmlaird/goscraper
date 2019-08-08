@@ -25,18 +25,3 @@ func assertStringOutput(t *testing.T, got, want string) {
 		t.Errorf("got %v but wanted %v", got, want)
 	}
 }
-
-func assertBoolean(t *testing.T, got, want bool) {
-	t.Helper()
-	if got != want {
-		t.Errorf("got %v but wanted %v", got, want)
-	}
-}
-
-//
-//func assertDeepEqual(t *testing.T, got, want interface{}) {
-//	t.Helper()
-//	if got != want {
-//		t.Errorf("got %v but wanted %v", got, want)
-//	}
-//}
