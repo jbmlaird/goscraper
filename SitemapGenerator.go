@@ -27,12 +27,7 @@ func (s *SitemapBuilder) returnSitemap() []string {
 	return s.sitemapLinks
 }
 
-// This method is not directly tested because it's provided by the Golang documentation:
-// https://golang.org/pkg/sort/#SearchStrings calls https://golang.org/pkg/sort/#Search
 func (s *SitemapBuilder) contains(string string) bool {
-	// TODO: Not sure why mutex locking here causes the app to hang. Figure out why
-	//s.mu.RLock()
-	//defer s.mu.RUnlock()
 	i := sort.SearchStrings(s.sitemapLinks, string)
 	return i < len(s.sitemapLinks) && s.sitemapLinks[i] == string
 }

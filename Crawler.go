@@ -40,13 +40,13 @@ var errSingleCharacter = errors.New("URL is only a single character")
 
 func (c *CrawlerImpl) buildSitemap(urlToCrawl string) ([]string, error) {
 	hostname, err := c.urlManipulator.verifyBaseUrl(urlToCrawl)
-
 	if err != nil {
 		if err == errInvalidBaseUrl {
 			return nil, errors.Wrapf(err, "URL supplied is in the incorrect format: %v", urlToCrawl)
 		}
 		return nil, errors.Wrapf(err, "Error parsing given URL %v", urlToCrawl)
 	}
+
 	// What if a goroutine fails against a certain URL? Remove it from the sitemap?
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -81,7 +81,6 @@ func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) error {
 	}
 	if responseBody != nil {
 		c.sitemapBuilder.addToSitemap(cleanedUrl)
-		// TODO: Handle error
 		urls, err := findUrls(responseBody)
 		responseBody.Close()
 		if err != nil {

@@ -11,7 +11,6 @@ To build:
 Improvements:
 
 * Cancellation of requests
-* Strip things after `#` as well as queries (after `?`)
 
 Notes:
 
