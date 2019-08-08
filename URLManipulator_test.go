@@ -45,11 +45,17 @@ func TestVerifyUrl(t *testing.T) {
 			"HTTPS://monzo.co.uk",
 			"HTTPS://monzo.co.uk",
 		},
+		{
+			"verify, removing trailing slash",
+			"HTTPS://monzo.co.uk/",
+			"HTTPS://monzo.co.uk",
+		},
 	}
 
 	for _, test := range successCases {
 		t.Run(test.Name, func(t *testing.T) {
-			got, err := verifyHostname(test.URL)
+			urlManipulator := NewUrlManipulator()
+			got, err := urlManipulator.verifyHostname(test.URL)
 			assertNoError(t, err)
 			assertStringOutput(t, got, test.Hostname)
 		})
@@ -79,7 +85,8 @@ func TestVerifyUrl(t *testing.T) {
 
 	for _, test := range errorCases {
 		t.Run(test.Name, func(t *testing.T) {
-			_, err := verifyHostname(test.URL)
+			urlManipulator := NewUrlManipulator()
+			_, err := urlManipulator.verifyHostname(test.URL)
 			assertErrorMessage(t, err, errInvalidUrl.Error())
 		})
 	}
@@ -134,7 +141,8 @@ func TestIsSameDomain(t *testing.T) {
 
 	for _, test := range isSameDomainNoErrorCases {
 		t.Run(test.Name, func(t *testing.T) {
-			assertNoError(t, checkSameDomain(test.UrlToCheck, test.Hostname))
+			urlManipulator := NewUrlManipulator()
+			assertNoError(t, urlManipulator.checkSameDomain(test.UrlToCheck, test.Hostname))
 		})
 	}
 
@@ -159,7 +167,8 @@ func TestIsSameDomain(t *testing.T) {
 
 	for _, test := range isSameDomainErrorCases {
 		t.Run(test.Name, func(t *testing.T) {
-			assertErrorMessage(t, checkSameDomain(test.UrlToCheck, test.Hostname), errDifferentDomain.Error())
+			urlManipulator := NewUrlManipulator()
+			assertErrorMessage(t, urlManipulator.checkSameDomain(test.UrlToCheck, test.Hostname), errDifferentDomain.Error())
 		})
 	}
 }

@@ -16,15 +16,17 @@ type Crawler interface {
 
 type CrawlerImpl struct {
 	hostnameWithProtocol string
+	urlManipulator       *URLManipulator
 	client               *RetryHttpClient
 	*CrawlerUrlChecker
 	sitemapBuilder SitemapBuilder
 	mu             sync.RWMutex
 }
 
-func NewCrawler(hostname string) *CrawlerImpl {
+func NewCrawler(hostname string, manipulator *URLManipulator) *CrawlerImpl {
 	return &CrawlerImpl{
 		addHttpsIfNecessary(hostname),
+		manipulator,
 		NewRetryHttpClient(3, 0, 1, 10),
 		NewCrawlerUrlTracker(),
 		SitemapBuilder{},
@@ -88,7 +90,7 @@ func (c *CrawlerImpl) addToCrawledUrlsIfUncrawled(url string) (string, error) {
 	}
 	url = addHostnameAndProtocolToRelativeUrls(url, c.hostnameWithProtocol)
 	url = addHttpsIfNecessary(url)
-	err := checkSameDomain(url, c.hostnameWithProtocol)
+	err := c.urlManipulator.checkSameDomain(url, c.hostnameWithProtocol)
 	if err != nil {
 		log.Printf("%v is a different domain", url)
 		return "", errDifferentDomain

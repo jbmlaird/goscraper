@@ -54,7 +54,7 @@ func TestCrawler(t *testing.T) {
 
 	for _, test := range addToCrawledUrlsCases {
 		t.Run(test.Name, func(t *testing.T) {
-			crawler := NewCrawler(test.HostnameWithProtocol)
+			crawler := NewCrawler(test.HostnameWithProtocol, NewUrlManipulator())
 			got, err := crawler.addToCrawledUrlsIfUncrawled(test.Input)
 			assertNoError(t, err)
 			assertStringOutput(t, got, test.Want)

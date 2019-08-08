@@ -7,6 +7,16 @@ import (
 	"strings"
 )
 
+type URLManipulator struct {
+	urlRegex *regexp.Regexp
+}
+
+func NewUrlManipulator() *URLManipulator {
+	return &URLManipulator{
+		regexp.MustCompile(validUrlRegex),
+	}
+}
+
 const (
 	protocol = "protocol"
 	hostname = "hostnameWithProtocol"
@@ -14,16 +24,17 @@ const (
 
 var (
 	errInvalidUrl = errors.New("invalid url")
-	validUrlRegex = fmt.Sprintf(`(?i)^(?P<%v>(https?|ftp|smtp)\:\/\/)?(?P<%v>[[:alnum:]]+\.[[:alnum:]]+(?:\.[[:alnum:]]+)?)$`, protocol, hostname)
+	protocolRegex = fmt.Sprintf(`(?i)^(?P<%v>(https?|ftp|smtp)\:\/\/)?`, protocol)
+	hostnameRegex = fmt.Sprintf(`(?P<%v>[[:alnum:]]+\.[[:alnum:]]+(?:\.[[:alnum:]]+)?)`, hostname)
+	validUrlRegex = fmt.Sprintf(`%v%v\/?$`, protocolRegex, hostnameRegex)
 )
 
-func verifyHostname(url string) (string, error) {
-	regex := regexp.MustCompile(validUrlRegex)
-	res := regex.FindStringSubmatch(url)
+func (u *URLManipulator) verifyHostname(url string) (string, error) {
+	res := u.urlRegex.FindStringSubmatch(url)
 	validUrl := false
 
 	var sb strings.Builder
-	for i, name := range regex.SubexpNames() {
+	for i, name := range u.urlRegex.SubexpNames() {
 		if (name == hostname || name == protocol) && res != nil && i < len(res) {
 			if name == hostname {
 				validUrl = true
@@ -53,11 +64,30 @@ func addHostnameAndProtocolToRelativeUrls(url, hostnameWithProtocol string) stri
 }
 
 // URLs passed into this will always have a hostnameWithProtocol prefix
-func checkSameDomain(url, hostname string) error {
-	url = addHostnameAndProtocolToRelativeUrls(url, hostname)
-	// TODO: strip protocols on both strings for comparison
-	//url = stripProtocol(url)
-	if strings.HasPrefix(url, hostname) {
+func (u *URLManipulator) checkSameDomain(url, hostname string) error {
+	urlRes := u.urlRegex.FindStringSubmatch(url)
+
+	var urlHostname string
+	var hostnameHostname string
+
+	for i, name := range u.urlRegex.SubexpNames() {
+		if (name == hostname) && urlRes != nil && i < len(urlRes) {
+			if name == hostname {
+				urlHostname = urlRes[i]
+			}
+		}
+	}
+
+	hostnameRes := u.urlRegex.FindStringSubmatch(hostname)
+	for i, name := range u.urlRegex.SubexpNames() {
+		if (name == hostname) && urlRes != nil && i < len(urlRes) {
+			if name == hostname {
+				hostnameHostname = hostnameRes[i]
+			}
+		}
+	}
+
+	if urlHostname == hostnameHostname {
 		return nil
 	}
 	return errDifferentDomain

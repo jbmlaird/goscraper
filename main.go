@@ -10,7 +10,8 @@ import (
 func main() {
 	start := time.Now()
 	urlToCrawl := "https://monzo.com"
-	hostname, err := verifyHostname(urlToCrawl)
+	urlManipulator := NewUrlManipulator()
+	hostname, err := urlManipulator.verifyHostname(urlToCrawl)
 
 	// Could be using errors.Wrap here. Explore later.
 	if err != nil {
@@ -20,7 +21,7 @@ func main() {
 		log.Fatalf("Error parsing given URL %v, err: %v", urlToCrawl, err)
 	}
 
-	crawler := NewCrawler(hostname)
+	crawler := NewCrawler(hostname, urlManipulator)
 	sitemap, err := crawler.buildSitemap(hostname)
 	if err != nil {
 		panic(errors.WithMessage(err, "unable to crawl URL"))
