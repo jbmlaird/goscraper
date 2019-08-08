@@ -16,8 +16,8 @@ type Crawler interface {
 }
 
 type CrawlerImpl struct {
-	hostname       string
-	client         *RetryHttpClient
+	hostname string
+	client   *RetryHttpClient
 	*CrawlerUrlChecker
 	sitemapBuilder SitemapBuilder
 	mu             sync.RWMutex
@@ -39,52 +39,31 @@ var errAlreadyCrawled = errors.New("already crawled URL")
 func (c *CrawlerImpl) buildSitemap(hostname string) ([]string, error) {
 	// What if a goroutine fails against a certain URL? Remove it from the sitemap?
 	_ = c.request(hostname)
-
-	//select {
-	//// only add when it's finished
-	//case crawledUrl := <-crawledUrls:
-	//	// further handling
-	//	c.sitemapBuilder.addToSitemap(crawledUrl)
-	//case <-time.After(time.Second * 10):
-	//	return nil, nil
-	//}
 	return c.sitemapBuilder.returnSitemap(), nil
 }
 
 func (c *CrawlerImpl) getResponseBody(url string) (io.ReadCloser, error) {
-	c.addToCrawledUrls(url)
-
 	response, err := c.client.getResponse(url)
 	if err != nil {
-		// TODO: This shouldn't be fatal
-		// Just log that this URL failed and then retry?
 		return nil, errors.WithMessagef(err, "failed to fetch URL: %v", c.hostname)
 	}
 	if response != nil {
 		return response.Body, nil
 	}
-	return nil, errors.New("unable to read response body")
+	return nil, errors.Errorf("unable to read response body for URL %v", url)
 }
 
 func (c *CrawlerImpl) request(url string) error {
-	if c.alreadyCrawled(url) {
-		log.Printf("skipping url %v as already been crawled", url)
-		return errAlreadyCrawled
-	}
-	if !c.isSameDomain(url) {
-		log.Printf("skipping url %v as different domain", url)
-		return errDifferentDomain
+	url, err := c.addUrlToSitemapIfValid(url)
+	if err != nil {
+		return errors.Wrapf(err, "skipping url", url)
 	}
 	log.Printf("crawling URL: %v", url)
 	responseBody, err := c.getResponseBody(url)
 	if err != nil {
-		// TODO: Is this all I need?
-		if err == errDifferentDomain || err == errAlreadyCrawled {
-			// ignore. Some URLs won't be required
-		} else {
-			return errors.WithMessagef(err, "unable to get response body for %v", url)
-		}
-	} else if responseBody != nil {
+		return errors.WithMessagef(err, "unable to get response body for %v", url)
+	}
+	if responseBody != nil {
 		// TODO: Handle error
 		urls, _ := findUrls(responseBody)
 		responseBody.Close()
@@ -92,10 +71,32 @@ func (c *CrawlerImpl) request(url string) error {
 		// add to sitemap then begin request
 		for _, url := range urls {
 			// This is definitely wrong as it will add on this URL to external URLs
-			c.request(c.hostname + url)
+			go c.request(url)
 		}
 	}
 	return nil
+}
+
+func (c *CrawlerImpl) addUrlToSitemapIfValid(url string) (string, error) {
+	if len(url) > 1 && url[0] == '/' {
+		url = c.hostname + url
+	}
+	if !c.isSameDomain(url) {
+		log.Printf("%v is a different domain", url)
+		return "", errDifferentDomain
+	}
+	if c.alreadyCrawled(url) {
+		log.Printf("%v has already been crawled", url)
+		return "", errAlreadyCrawled
+	}
+	return url, nil
+}
+
+func addHttpsIfNecessary(url string) string {
+	if !strings.HasPrefix(url, "https://") || !strings.HasPrefix(url, "http://") {
+		return "https://" + url
+	}
+	return url
 }
 
 func (c *CrawlerImpl) isSameDomain(url string) bool {

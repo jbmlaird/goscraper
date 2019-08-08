@@ -24,43 +24,65 @@ import (
 //}
 
 func TestCrawler(t *testing.T) {
-	cases := []struct{
-		Name string
-		Hostname string
+	isSameDomainCases := []struct {
+		Name       string
+		Hostname   string
 		UrlToCheck string
-		Want bool
+		Want       bool
 	}{
-		{"is same domain absolute path returns true",
+		{"isSameDomain absolute path returns true",
 			"https://www.monzo.com",
 			"https://www.monzo.com/help",
 			true,
 		},
-		{"is same domain relative path returns true",
+		{"isSameDomain relative path returns true",
 			"https://www.monzo.com",
 			"/help",
 			true,
 		},
-		{"is different domain returns false",
+		{"isSameDomain different domain returns false",
 			"https://www.monzo.com",
 			"https://www.monzo.co.uk/help",
 			false,
 		},
-		{"is homepage returns false",
+		{"isSameDomain homepage returns false",
 			"https://www.monzo.com",
 			"/",
 			false,
 		},
-		{"is empty. returns false",
+		{"isSameDomain empty returns false",
 			"https://www.monzo.com",
 			"",
 			false,
 		},
 	}
 
-	for _, test := range cases {
+	for _, test := range isSameDomainCases {
 		t.Run(test.Name, func(t *testing.T) {
 			crawler := NewCrawler(test.Hostname)
 			assertBoolean(t, crawler.isSameDomain(test.UrlToCheck), test.Want)
+		})
+	}
+
+	addHttpsIfNecessaryCases := []struct {
+		Name  string
+		Input string
+		Want  string
+	}{
+		{"addHttpsIfNecessary adds https:// to hostname",
+			"monzo.com",
+			"https://monzo.com",
+		},
+		{"addHttpsIfNecessary adds https:// to relative path",
+			"/help",
+			"https://monzo.com/help",
+		},
+	}
+
+	for _, test := range addHttpsIfNecessaryCases {
+		t.Run(test.Name, func(t *testing.T) {
+			got := addHttpsIfNecessary(test.Input)
+			assertStringOutput(t, got, test.Want)
 		})
 	}
 }

@@ -22,6 +22,7 @@ func main() {
 
 	crawler := NewCrawler(hostname)
 	sitemap, err := crawler.buildSitemap(hostname)
+	time.Sleep(time.Second * 20)
 	if err != nil {
 		panic(errors.WithMessage(err, "unable to crawl URL"))
 	}
