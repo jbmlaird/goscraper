@@ -22,10 +22,11 @@ func main() {
 
 	crawler := NewCrawler(hostname)
 	sitemap, err := crawler.buildSitemap(hostname)
-	time.Sleep(time.Second * 20)
 	if err != nil {
 		panic(errors.WithMessage(err, "unable to crawl URL"))
 	}
-	fmt.Println(sitemap)
+	for _, value := range sitemap {
+		fmt.Println(value)
+	}
 	fmt.Printf("crawling took: %s", time.Since(start))
 }

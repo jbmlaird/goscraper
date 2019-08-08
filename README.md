@@ -13,6 +13,9 @@ Improvements:
 * If the user input an https protocol and the page has absolute paths with http, this will currently fail
 * `NewRetryHttpClientWithPolicy` :'(
 * Cancellation of requests
+* `/` is a different domain error needs to be fixed. Instead be, `this is the homepage`
+* `#` links
+* Fix Twitter links appearing
 
 Notes:
 

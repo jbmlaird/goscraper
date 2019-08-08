@@ -38,7 +38,11 @@ var errAlreadyCrawled = errors.New("already crawled URL")
 
 func (c *CrawlerImpl) buildSitemap(hostname string) ([]string, error) {
 	// What if a goroutine fails against a certain URL? Remove it from the sitemap?
-	_ = c.request(hostname)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	_ = c.request(hostname, &wg)
+	wg.Done()
+	wg.Wait()
 	return c.sitemapBuilder.returnSitemap(), nil
 }
 
@@ -53,8 +57,9 @@ func (c *CrawlerImpl) getResponseBody(url string) (io.ReadCloser, error) {
 	return nil, errors.Errorf("unable to read response body for URL %v", url)
 }
 
-func (c *CrawlerImpl) request(url string) error {
-	url, err := c.addUrlToSitemapIfValid(url)
+func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) error {
+	defer wg.Done()
+	url, err := c.addToCrawledUrlsIfUncrawled(url)
 	if err != nil {
 		return errors.Wrapf(err, "skipping url", url)
 	}
@@ -64,20 +69,21 @@ func (c *CrawlerImpl) request(url string) error {
 		return errors.WithMessagef(err, "unable to get response body for %v", url)
 	}
 	if responseBody != nil {
+		c.sitemapBuilder.addToSitemap(url)
 		// TODO: Handle error
 		urls, _ := findUrls(responseBody)
 		responseBody.Close()
 		// check URLs are valid
 		// add to sitemap then begin request
 		for _, url := range urls {
-			// This is definitely wrong as it will add on this URL to external URLs
-			go c.request(url)
+			wg.Add(1)
+			go c.request(url, wg)
 		}
 	}
 	return nil
 }
 
-func (c *CrawlerImpl) addUrlToSitemapIfValid(url string) (string, error) {
+func (c *CrawlerImpl) addToCrawledUrlsIfUncrawled(url string) (string, error) {
 	if len(url) > 1 && url[0] == '/' {
 		url = c.hostname + url
 	}

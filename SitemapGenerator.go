@@ -8,7 +8,7 @@ import (
 
 type SitemapBuilder struct {
 	sitemapLinks []string
-	mu sync.Mutex
+	mu           sync.Mutex
 }
 
 // sitemapLinks is sorted afterwards so that sort.Search() can be called which must be called on a sorted slice
@@ -24,10 +24,6 @@ func (s *SitemapBuilder) addToSitemap(link string) {
 }
 
 func (s *SitemapBuilder) returnSitemap() []string {
-	// TODO: Do I need these?
-	// This should only be called when everything has finished
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	return s.sitemapLinks
 }
 
