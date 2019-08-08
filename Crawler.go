@@ -4,7 +4,6 @@ import (
 	"github.com/pkg/errors"
 	"io"
 	"log"
-	"strings"
 	"sync"
 )
 
@@ -16,8 +15,8 @@ type Crawler interface {
 }
 
 type CrawlerImpl struct {
-	hostname string
-	client   *RetryHttpClient
+	hostnameWithProtocol string
+	client               *RetryHttpClient
 	*CrawlerUrlChecker
 	sitemapBuilder SitemapBuilder
 	mu             sync.RWMutex
@@ -25,16 +24,18 @@ type CrawlerImpl struct {
 
 func NewCrawler(hostname string) *CrawlerImpl {
 	return &CrawlerImpl{
-		hostname,
+		addHttpsIfNecessary(hostname),
 		NewRetryHttpClient(3, 0, 1, 10),
 		NewCrawlerUrlTracker(),
 		SitemapBuilder{},
 		sync.RWMutex{},
 	}
+
 }
 
 var errDifferentDomain = errors.New("URL belongs to another domain")
 var errAlreadyCrawled = errors.New("already crawled URL")
+var errSingleCharacter = errors.New("URL is only a single character")
 
 func (c *CrawlerImpl) buildSitemap(hostname string) ([]string, error) {
 	// What if a goroutine fails against a certain URL? Remove it from the sitemap?
@@ -49,7 +50,7 @@ func (c *CrawlerImpl) buildSitemap(hostname string) ([]string, error) {
 func (c *CrawlerImpl) getResponseBody(url string) (io.ReadCloser, error) {
 	response, err := c.client.getResponse(url)
 	if err != nil {
-		return nil, errors.WithMessagef(err, "failed to fetch URL: %v", c.hostname)
+		return nil, errors.WithMessagef(err, "failed to fetch URL: %v", c.hostnameWithProtocol)
 	}
 	if response != nil {
 		return response.Body, nil
@@ -61,7 +62,7 @@ func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) error {
 	defer wg.Done()
 	url, err := c.addToCrawledUrlsIfUncrawled(url)
 	if err != nil {
-		return errors.Wrapf(err, "skipping url", url)
+		return errors.Wrapf(err, "skipping url %v", url)
 	}
 	log.Printf("crawling URL: %v", url)
 	responseBody, err := c.getResponseBody(url)
@@ -73,8 +74,6 @@ func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) error {
 		// TODO: Handle error
 		urls, _ := findUrls(responseBody)
 		responseBody.Close()
-		// check URLs are valid
-		// add to sitemap then begin request
 		for _, url := range urls {
 			wg.Add(1)
 			go c.request(url, wg)
@@ -84,33 +83,20 @@ func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) error {
 }
 
 func (c *CrawlerImpl) addToCrawledUrlsIfUncrawled(url string) (string, error) {
-	if len(url) > 1 && url[0] == '/' {
-		url = c.hostname + url
+	if len(url) <= 1 {
+		return "", errSingleCharacter
 	}
-	if !c.isSameDomain(url) {
+	url = addHostnameAndProtocolToRelativeUrls(url, c.hostnameWithProtocol)
+	url = addHttpsIfNecessary(url)
+	err := checkSameDomain(url, c.hostnameWithProtocol)
+	if err != nil {
 		log.Printf("%v is a different domain", url)
 		return "", errDifferentDomain
 	}
-	if c.alreadyCrawled(url) {
+	err = c.isAlreadyCrawled(url)
+	if err != nil {
 		log.Printf("%v has already been crawled", url)
 		return "", errAlreadyCrawled
 	}
 	return url, nil
-}
-
-func addHttpsIfNecessary(url string) string {
-	if !strings.HasPrefix(url, "https://") || !strings.HasPrefix(url, "http://") {
-		return "https://" + url
-	}
-	return url
-}
-
-func (c *CrawlerImpl) isSameDomain(url string) bool {
-	// split after then check prefix?
-	if (len(url) > 0 && url[0] == '/' && len(url) > 1) || strings.Contains(url, c.hostname) {
-		// this needs to be tested for when hostname = monzo.com and url = community.monzo.com
-		// you would need to ensure that the start of the string is empty
-		return true
-	}
-	return false
 }

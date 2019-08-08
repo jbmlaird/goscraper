@@ -3,34 +3,46 @@ package main
 import "testing"
 
 func TestCrawledUrlTracker(t *testing.T) {
-	alreadyCrawledCases := []struct{
+	alreadyCrawledFailCases := []struct {
 		Name        string
 		CrawledUrls map[string]struct{}
-		UrlToCheck string
-		Want        bool
+		UrlToCheck  string
 	}{
 		{"already crawled detects repeated URL",
 			map[string]struct{}{
 				"https://monzo.com/help": {},
 			},
 			"https://monzo.com/help",
-			true,
 		},
+	}
+
+	for _, test := range alreadyCrawledFailCases {
+		t.Run(test.Name, func(t *testing.T) {
+			crawledUrlTracker := NewCrawlerUrlTracker()
+			crawledUrlTracker.crawledUrls = test.CrawledUrls
+			assertErrorMessage(t, crawledUrlTracker.isAlreadyCrawled(test.UrlToCheck), errAlreadyCrawled.Error())
+		})
+	}
+
+	alreadyCrawledSuccessCases := []struct {
+		Name        string
+		CrawledUrls map[string]struct{}
+		UrlToCheck  string
+	}{
 		{
 			"already crawled doesn't flag new URL",
 			map[string]struct{}{
 				"https://monzo.com/": {},
 			},
 			"https://monzo.com/help",
-			false,
 		},
 	}
 
-	for _, test := range alreadyCrawledCases {
+	for _, test := range alreadyCrawledSuccessCases {
 		t.Run(test.Name, func(t *testing.T) {
 			crawledUrlTracker := NewCrawlerUrlTracker()
 			crawledUrlTracker.crawledUrls = test.CrawledUrls
-			assertBoolean(t, crawledUrlTracker.alreadyCrawled(test.UrlToCheck), test.Want)
+			assertNoError(t, crawledUrlTracker.isAlreadyCrawled(test.UrlToCheck))
 		})
 	}
 }

@@ -14,13 +14,13 @@ func NewCrawlerUrlTracker() *CrawlerUrlChecker {
 	}
 }
 
-func (c *CrawlerUrlChecker) alreadyCrawled(url string) bool {
+func (c *CrawlerUrlChecker) isAlreadyCrawled(url string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	_, ok := c.crawledUrls[url]
 	if !ok {
 		c.crawledUrls[url] = struct{}{}
-		return false
+		return nil
 	}
-	return true
+	return errAlreadyCrawled
 }
