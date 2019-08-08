@@ -22,6 +22,7 @@ type CrawlerImpl struct {
 	sitemapBuilder SitemapBuilder
 	mu             sync.RWMutex
 	chanErr chan error
+	goRoutineErrors []error
 }
 
 func NewCrawler(hostname string) *CrawlerImpl {
@@ -33,6 +34,7 @@ func NewCrawler(hostname string) *CrawlerImpl {
 		SitemapBuilder{},
 		sync.RWMutex{},
 		make(chan error),
+		[]error{},
 	}
 }
 
@@ -51,10 +53,12 @@ func (c *CrawlerImpl) buildSitemap(urlToCrawl string) ([]string, error) {
 
 	// What if a goroutine fails against a certain URL? Remove it from the sitemap?
 	var wg sync.WaitGroup
-	c.request(hostname, &wg)
+	go c.saveErrChan()
+	wg.Add(1)
+	go c.request(hostname, &wg)
 	wg.Wait()
 	close(c.chanErr)
-	for err := range c.chanErr {
+	for _, err := range c.goRoutineErrors {
 		log.Printf("goroutine failed with: %v", err)
 	}
 	return c.sitemapBuilder.returnSitemap(), nil
@@ -118,4 +122,10 @@ func (c *CrawlerImpl) addToCrawledUrlsIfUncrawled(cleanedUrl string) error {
 		return errors.Wrapf(err, "%v has already been crawled", cleanedUrl)
 	}
 	return nil
+}
+
+func (c *CrawlerImpl) saveErrChan() {
+	for {
+		c.goRoutineErrors = append(c.goRoutineErrors, <-c.chanErr)
+	}
 }

@@ -16,4 +16,6 @@ Notes:
 
 * Hangs forever on this channels version. Due to receiving channels blocking forever until the message is processed
     * going to have to think about how to handle this
+    * something needs to process the unbuffered channel in order to unblock. Could have something which just
+    continuously collects the error messages 
 * Didn't know Go a month ago :'(
