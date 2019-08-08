@@ -53,6 +53,7 @@ func (c *CrawlerImpl) buildSitemap(urlToCrawl string) ([]string, error) {
 	var wg sync.WaitGroup
 	c.request(hostname, &wg)
 	wg.Wait()
+	close(c.chanErr)
 	for err := range c.chanErr {
 		log.Printf("goroutine failed with: %v", err)
 	}
@@ -78,12 +79,12 @@ func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) {
 		return
 		//return errors.Wrapf(err, "invalid URL passed to clean URL: %v", url)
 	}
-	// TODO: WaitGroup crashes if this code is here rather than in the addToCrawledUrlsIfUncrawled method
-	// no idea why
-	/*err = c.urlManipulator.checkSameDomain(url, c.hostnameWithProtocol)
-	//if err != nil {
-	//	return errors.Wrapf(err, "%v is a different domain, original URL: %v", cleanedUrl, url)
-	}*/
+	err = c.urlManipulator.checkSameDomain(cleanedUrl, c.hostnameWithProtocol)
+	if err != nil {
+		c.chanErr<-errors.Wrapf(err, "%v is a different domain, original URL: %v", cleanedUrl, url)
+		return
+		//return errors.Wrapf(err, "%v is a different domain, original URL: %v", cleanedUrl, url)
+	}
 	err = c.addToCrawledUrlsIfUncrawled(cleanedUrl)
 	if err != nil {
 		c.chanErr<-errors.Wrapf(err, "skipping cleaned url %v, original url %v", cleanedUrl, url)
@@ -110,21 +111,17 @@ func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) {
 		return
 		//return errors.Wrapf(err, "unable to close response body from cleaned URL %v, original URL %v", cleanedUrl, url)
 	}
-	log.Printf("adding waitgroup: %d", len(urls))
+	wg.Add(len(urls))
 	for _, url := range urls {
 		// TODO: Handle error for Goroutine
 		go c.request(url, wg)
 	}
 }
 
-func (c *CrawlerImpl) addToCrawledUrlsIfUncrawled(url string) error {
-	err := c.urlManipulator.checkSameDomain(url, c.hostnameWithProtocol)
+func (c *CrawlerImpl) addToCrawledUrlsIfUncrawled(cleanedUrl string) error {
+	err := c.isAlreadyCrawled(cleanedUrl)
 	if err != nil {
-		return errors.Wrapf(err, "%v is a different domain", url)
-	}
-	err = c.isAlreadyCrawled(url)
-	if err != nil {
-		return errors.Wrapf(err, "%v has already been crawled", url)
+		return errors.Wrapf(err, "%v has already been crawled", cleanedUrl)
 	}
 	return nil
 }

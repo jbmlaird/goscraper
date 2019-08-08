@@ -14,4 +14,5 @@ Improvements:
 
 Notes:
 
+* WaitGroup hangs forever in this channels version
 * Didn't know Go a month ago :'(
