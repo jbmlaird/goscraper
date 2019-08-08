@@ -135,12 +135,12 @@ func TestCleanUrl(t *testing.T) {
 		Input   string
 		Want    string
 	}{
-		{"cleanUrl adds https:// to hostnameWithProtocol",
+		{"cleanUrl adds https:// to BaseUrl",
 			"google.co.uk",
 			"google.co.uk",
 			"https://google.co.uk",
 		},
-		{"cleanUrl adds base url to relative pathCapGroup",
+		{"cleanUrl adds base url to relative path",
 			"condenastint.com",
 			"/help",
 			"https://condenastint.com/help",
@@ -167,6 +167,12 @@ func TestCleanUrl(t *testing.T) {
 
 	t.Run("pass single character, throw error", func(t *testing.T) {
 		got, err := cleanUrl("/", "www.monzo.com")
+		assertErrorMessage(t, err, errSingleCharacter.Error())
+		assertStringOutput(t, got, "")
+	})
+
+	t.Run("pass empty string, throw error", func(t *testing.T) {
+		got, err := cleanUrl("", "www.monzo.com")
 		assertErrorMessage(t, err, errSingleCharacter.Error())
 		assertStringOutput(t, got, "")
 	})

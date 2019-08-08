@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
+	"log"
 	"time"
 )
 
@@ -13,7 +13,7 @@ func main() {
 	crawler := NewCrawler(urlToCrawl)
 	sitemap, err := crawler.buildSitemap(urlToCrawl)
 	if err != nil {
-		panic(errors.WithMessage(err, "unable to crawl URL"))
+		log.Fatalf("unable to crawl base URL: %v, err: %v", urlToCrawl, err)
 	}
 	for _, value := range sitemap {
 		fmt.Println(value)

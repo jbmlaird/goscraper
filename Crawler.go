@@ -73,6 +73,7 @@ func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) error {
 	if err != nil {
 		return errors.Wrapf(err, "invalid URL passed to clean URL: %v", url)
 	}
+	// TODO: WaitGroup crashes if this code is here rather than in the addToCrawledUrlsIfUncrawled method
 	//err = c.urlManipulator.checkSameDomain(url, c.hostnameWithProtocol)
 	//if err != nil {
 	//	return errors.Wrapf(err, "%v is a different domain, original URL: %v", cleanedUrl, url)
@@ -95,8 +96,8 @@ func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) error {
 	if err != nil {
 		return errors.Wrapf(err, "unable to close response body from cleaned URL %v, original URL %v", cleanedUrl, url)
 	}
+	wg.Add(len(urls))
 	for _, url := range urls {
-		wg.Add(1)
 		// TODO: Handle error for Goroutine
 		go c.request(url, wg)
 	}
