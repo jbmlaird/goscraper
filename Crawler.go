@@ -73,11 +73,10 @@ func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) error {
 	if err != nil {
 		return errors.Wrapf(err, "invalid URL passed to clean URL: %v", url)
 	}
-	// TODO: WaitGroup crashes if this code is here rather than in the addToCrawledUrlsIfUncrawled method
-	//err = c.urlManipulator.checkSameDomain(url, c.hostnameWithProtocol)
-	//if err != nil {
-	//	return errors.Wrapf(err, "%v is a different domain, original URL: %v", cleanedUrl, url)
-	//}
+	err = c.urlManipulator.checkSameDomain(cleanedUrl, c.hostnameWithProtocol)
+	if err != nil {
+		return errors.Wrapf(err, "%v is a different domain, original URL: %v", cleanedUrl, url)
+	}
 	err = c.addToCrawledUrlsIfUncrawled(cleanedUrl)
 	if err != nil {
 		return errors.Wrapf(err, "skipping cleaned url %v, original url %v", cleanedUrl, url)
