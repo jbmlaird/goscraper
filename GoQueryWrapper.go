@@ -12,9 +12,6 @@ func findUrls(responseBody io.ReadCloser) (urls []string, err error) {
 		return nil, errors.Wrap(err, "unable to parse response body")
 	}
 	document.Find("a[href]").Each(func(i int, selection *goquery.Selection) {
-		// if valid link (absolute pathCapGroup?)
-		// not contained in sitemap already
-		// get response body and find URLs
 		href, _ := selection.Attr("href")
 		urls = append(urls, href)
 	})
