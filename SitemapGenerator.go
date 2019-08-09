@@ -11,6 +11,13 @@ type SitemapBuilder struct {
 	mu           sync.Mutex
 }
 
+func NewSitemapBuilder() *SitemapBuilder {
+	return &SitemapBuilder{
+		sitemapLinks: []string{},
+		mu:           sync.Mutex{},
+	}
+}
+
 // sitemapLinks is sorted afterwards so that sort.Search() can be called which must be called on a sorted slice
 func (s *SitemapBuilder) addToSitemap(link string) {
 	s.mu.Lock()

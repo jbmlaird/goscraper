@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"sync"
+	"time"
 )
 
 type Crawler interface {
@@ -19,10 +20,8 @@ type CrawlerImpl struct {
 	urlManipulator       *URLManipulator
 	client               *RetryHttpClient
 	*CrawlerUrlChecker
-	sitemapBuilder SitemapBuilder
-	mu             sync.Mutex
-	chanErr chan error
-	goRoutineErrors []error
+	sitemapBuilder *SitemapBuilder
+	channelManager *ChannelManager
 }
 
 func NewCrawler(hostname string) *CrawlerImpl {
@@ -31,10 +30,8 @@ func NewCrawler(hostname string) *CrawlerImpl {
 		NewUrlManipulator(),
 		NewRetryHttpClient(3, 0, 1, 10),
 		NewCrawlerUrlTracker(),
-		SitemapBuilder{},
-		sync.Mutex{},
-		make(chan error),
-		[]error{},
+		NewSitemapBuilder(),
+		NewChannelManager(),
 	}
 }
 
@@ -53,13 +50,14 @@ func (c *CrawlerImpl) buildSitemap(urlToCrawl string) ([]string, error) {
 
 	var wg sync.WaitGroup
 	go c.saveErrChan()
+	time.Sleep(5 * time.Second)
 	wg.Add(1)
 	go c.request(hostname, &wg)
 	wg.Wait()
-	close(c.chanErr)
-	for _, err := range c.goRoutineErrors {
-		log.Printf("goroutine failed with: %v", err)
-	}
+	//close(c.chanErr)
+	//for _, err := range c.goRoutineErrors {
+	//	log.Printf("goroutine failed with: %v", err)
+	//}
 	return c.sitemapBuilder.returnSitemap(), nil
 }
 
@@ -78,34 +76,34 @@ func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	cleanedUrl, err := cleanUrl(url, c.hostnameWithProtocol)
 	if err != nil {
-		c.chanErr<-errors.Wrapf(err, "invalid URL passed to clean URL: %v", url)
+		//c.chanErr <- errors.Wrapf(err, "invalid URL passed to clean URL: %v", url)
 		return
 	}
 	err = c.urlManipulator.checkSameDomain(cleanedUrl, c.hostnameWithProtocol)
 	if err != nil {
-		c.chanErr<-errors.Wrapf(err, "%v is a different domain, original URL: %v", cleanedUrl, url)
+		//c.chanErr <- errors.Wrapf(err, "%v is a different domain, original URL: %v", cleanedUrl, url)
 		return
 	}
 	err = c.addToCrawledUrlsIfUncrawled(cleanedUrl)
 	if err != nil {
-		c.chanErr<-errors.Wrapf(err, "skipping cleaned url %v, original url %v", cleanedUrl, url)
+		//c.chanErr <- errors.Wrapf(err, "skipping cleaned url %v, original url %v", cleanedUrl, url)
 		return
 	}
 	log.Printf("crawling cleaned URL: %v, original URL: %v", cleanedUrl, url)
 	responseBody, err := c.getResponseBody(cleanedUrl)
 	if err != nil {
-		c.chanErr<-errors.Wrapf(err, "skipping cleaned url %v, original url %v", cleanedUrl, url)
+		//c.chanErr <- errors.Wrapf(err, "skipping cleaned url %v, original url %v", cleanedUrl, url)
 		return
 	}
 	c.sitemapBuilder.addToSitemap(cleanedUrl)
 	urls, err := findUrls(responseBody)
 	if err != nil {
-		c.chanErr<-errors.Wrapf(err, "unable to find any URLs for cleaned URL %v, original URL: %v", cleanedUrl, url)
+		//c.chanErr <- errors.Wrapf(err, "unable to find any URLs for cleaned URL %v, original URL: %v", cleanedUrl, url)
 		return
 	}
 	err = responseBody.Close()
 	if err != nil {
-		c.chanErr<-errors.Wrapf(err, "unable to close response body from cleaned URL %v, original URL %v", cleanedUrl, url)
+		//c.chanErr <- errors.Wrapf(err, "unable to close response body from cleaned URL %v, original URL %v", cleanedUrl, url)
 		return
 	}
 	wg.Add(len(urls))
@@ -123,7 +121,7 @@ func (c *CrawlerImpl) addToCrawledUrlsIfUncrawled(cleanedUrl string) error {
 }
 
 func (c *CrawlerImpl) saveErrChan() {
-	for {
-		c.goRoutineErrors = append(c.goRoutineErrors, <-c.chanErr)
-	}
+	//for {
+	//	c.goRoutineErrors = append(c.goRoutineErrors, <-c.chanErr)
+	//}
 }
