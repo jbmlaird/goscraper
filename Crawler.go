@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"sync"
-	"time"
 )
 
 type Crawler interface {
@@ -49,12 +48,11 @@ func (c *CrawlerImpl) buildSitemap(urlToCrawl string) ([]string, error) {
 	}
 
 	var wg sync.WaitGroup
-	go c.saveErrChan()
-	time.Sleep(5 * time.Second)
+	c.channelManager.StartListening()
 	wg.Add(1)
 	go c.request(hostname, &wg)
 	wg.Wait()
-	//close(c.chanErr)
+	c.channelManager.CloseChannels()
 	//for _, err := range c.goRoutineErrors {
 	//	log.Printf("goroutine failed with: %v", err)
 	//}

@@ -9,6 +9,7 @@ import (
 type SitemapBuilder struct {
 	sitemapLinks []string
 	mu           sync.Mutex
+	ChannelManager
 }
 
 func NewSitemapBuilder() *SitemapBuilder {
