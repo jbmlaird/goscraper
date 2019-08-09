@@ -13,5 +13,5 @@ Improvements:
 
 * Cancellation of requests
 * Allow the passing in of a URL on execution
-* Sitemap generation (JSON document?)
-* Check the output of the crawl. Ensure that only base URL links are in there. Integration test.
+* Have a nicer output of the crawler
+* Explore the use of channels (I started this in another branch)

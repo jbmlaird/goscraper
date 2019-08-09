@@ -7,14 +7,7 @@ import (
 	"sync"
 )
 
-type Crawler interface {
-	buildSitemap(hostname string) ([]string, error)
-	getResponseBody(url string) (io.ReadCloser, error)
-	alreadyCrawled(url string) bool
-	isSameDomain(url string) bool
-}
-
-type CrawlerImpl struct {
+type Crawler struct {
 	hostnameWithProtocol string
 	urlManipulator       *URLManipulator
 	client               *RetryHttpClient
@@ -24,11 +17,11 @@ type CrawlerImpl struct {
 	crawlerErrors  []error
 }
 
-func NewCrawler(hostname string) *CrawlerImpl {
-	return &CrawlerImpl{
+func NewCrawler(hostname string) *Crawler {
+	return &Crawler{
 		addHttpsIfNecessary(hostname),
 		NewUrlManipulator(),
-		NewRetryHttpClient(3, 0, 1, 10),
+		NewRetryHttpClient(3, 5, 10),
 		NewCrawlerUrlTracker(),
 		SitemapBuilder{},
 		sync.RWMutex{},
@@ -40,7 +33,7 @@ var errDifferentDomain = errors.New("URL belongs to another domain")
 var errAlreadyCrawled = errors.New("already crawled URL")
 var errSingleCharacter = errors.New("URL is only a single character")
 
-func (c *CrawlerImpl) buildSitemap(urlToCrawl string) ([]string, error) {
+func (c *Crawler) buildSitemap(urlToCrawl string) ([]string, error) {
 	err := c.urlManipulator.verifyBaseUrl(urlToCrawl)
 	if err != nil {
 		if err == errInvalidBaseUrl {
@@ -62,7 +55,7 @@ func (c *CrawlerImpl) buildSitemap(urlToCrawl string) ([]string, error) {
 	return c.sitemapBuilder.returnSitemap(), nil
 }
 
-func (c *CrawlerImpl) getResponseBody(url string) (io.ReadCloser, error) {
+func (c *Crawler) getResponseBody(url string) (io.ReadCloser, error) {
 	response, err := c.client.getResponse(url)
 	if err != nil {
 		return nil, errors.WithMessagef(err, "failed to fetch URL: %v", c.hostnameWithProtocol)
@@ -73,7 +66,7 @@ func (c *CrawlerImpl) getResponseBody(url string) (io.ReadCloser, error) {
 	return nil, errors.Errorf("unable to read response body for URL %v", url)
 }
 
-func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) error {
+func (c *Crawler) request(url string, wg *sync.WaitGroup) error {
 	defer wg.Done()
 	cleanedUrl, err := cleanUrl(url, c.hostnameWithProtocol)
 	if err != nil {
@@ -113,7 +106,7 @@ func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) error {
 	return nil
 }
 
-func (c *CrawlerImpl) addToCrawledUrlsIfUncrawled(url string) error {
+func (c *Crawler) addToCrawledUrlsIfUncrawled(url string) error {
 	err := c.isAlreadyCrawled(url)
 	if err != nil {
 		log.Printf("%v has already been crawled", url)

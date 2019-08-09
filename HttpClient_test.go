@@ -27,7 +27,7 @@ func (s *StubRetryPolicy) getRetryDelay() time.Duration {
 }
 
 func (s *StubRetryPolicy) resetRetries() {
-	s.resetRetriesCalls++
+	s.retryCount = 0
 }
 
 func (s *StubRetryPolicy) isFinalTry(try int) bool {
@@ -93,10 +93,9 @@ func TestURLFetcher(t *testing.T) {
 		assertRetryValue(t, stubRetryPolicy.backoffCalls, maxRetries)
 	})
 
-	t.Run("failing twice resets retry count between calls", func(t *testing.T) {
-		maxRetries := 3
+	t.Run("failing resets retry count", func(t *testing.T) {
 		stubRetryPolicy := &StubRetryPolicy{
-			maxRetries: maxRetries,
+			maxRetries: 3,
 		}
 		statusCode := http.StatusInternalServerError
 		httpClient := NewRetryHttpClientWithPolicy(0, stubRetryPolicy)
@@ -107,7 +106,7 @@ func TestURLFetcher(t *testing.T) {
 		_, err := httpClient.getResponse(ts.URL)
 
 		assertErrorMessage(t, err, fmt.Sprintf(errorMessage, ts.URL, statusCode))
-		assertRetryValue(t, stubRetryPolicy.backoffCalls, maxRetries)
+		assertRetryValue(t, stubRetryPolicy.retryCount, 0)
 	})
 	// No unit test for timeout as that is not my code
 }

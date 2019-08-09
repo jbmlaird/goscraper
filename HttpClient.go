@@ -13,7 +13,7 @@ type RetryHttpClient struct {
 	http.Client
 }
 
-func NewRetryHttpClient(retries, retryCount, retryDelay, timeoutSeconds int) *RetryHttpClient {
+func NewRetryHttpClient(retries, retryDelay, timeoutSeconds int) *RetryHttpClient {
 	return &RetryHttpClient{
 		&ProdRetryPolicy{
 			maxRetries:        retries,

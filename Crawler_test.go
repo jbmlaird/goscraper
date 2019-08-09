@@ -17,7 +17,7 @@ func TestCrawler(t *testing.T) {
 			t.Errorf("duplicate URL found in sitemap: %v", duplicate)
 		}
 
-		notSameHostname := ensureSameHostname(hostname, sitemapLinks)
+		notSameHostname := returnNotSameHostname(hostname, sitemapLinks)
 		for _, incorrectUrl := range notSameHostname {
 			t.Errorf("URL added to sitemap which belongs to a different domain: %v", incorrectUrl)
 		}
@@ -41,7 +41,7 @@ func returnDuplicates(urls []string) []string {
 }
 
 // I could use my URLManipulator but this would be using the same code that the crawler had used to add to the sitemap
-func ensureSameHostname(hostname string, sitemapLinks []string) []string {
+func returnNotSameHostname(hostname string, sitemapLinks []string) []string {
 	var incorrectLinks []string
 	hostnameStripped := strings.Replace(hostname, "https://", "", -1)
 
