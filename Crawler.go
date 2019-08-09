@@ -53,6 +53,7 @@ func (c *CrawlerImpl) buildSitemap(urlToCrawl string) ([]string, error) {
 	err = c.request(urlToCrawl, &wg)
 	wg.Wait()
 	for _, value := range c.crawlerErrors {
+		// I don't want goroutine errors to crash the program
 		log.Printf("a goroutine failed with error: %v", value)
 	}
 	if err != nil {
