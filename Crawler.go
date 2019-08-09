@@ -21,6 +21,7 @@ type CrawlerImpl struct {
 	*CrawlerUrlChecker
 	sitemapBuilder SitemapBuilder
 	mu             sync.RWMutex
+	crawlerErrors  []error
 }
 
 func NewCrawler(hostname string) *CrawlerImpl {
@@ -31,6 +32,7 @@ func NewCrawler(hostname string) *CrawlerImpl {
 		NewCrawlerUrlTracker(),
 		SitemapBuilder{},
 		sync.RWMutex{},
+		[]error{},
 	}
 }
 
@@ -48,8 +50,14 @@ func (c *CrawlerImpl) buildSitemap(urlToCrawl string) ([]string, error) {
 	}
 
 	var wg sync.WaitGroup
-	_ = c.request(urlToCrawl, &wg)
+	err = c.request(urlToCrawl, &wg)
 	wg.Wait()
+	for _, value := range c.crawlerErrors {
+		log.Printf("a goroutine failed with error: %v", value)
+	}
+	if err != nil {
+		return nil, errors.Wrapf(err, "problem trying to crawl base URL: %v", urlToCrawl)
+	}
 	return c.sitemapBuilder.returnSitemap(), nil
 }
 
@@ -94,8 +102,12 @@ func (c *CrawlerImpl) request(url string, wg *sync.WaitGroup) error {
 	}
 	wg.Add(len(urls))
 	for _, url := range urls {
-		// TODO: Handle error for Goroutine
-		go c.request(url, wg)
+		go func(url string, wg *sync.WaitGroup) {
+			err = c.request(url, wg)
+			if err != nil {
+				c.crawlerErrors = append(c.crawlerErrors, err)
+			}
+		}(url, wg)
 	}
 	return nil
 }
