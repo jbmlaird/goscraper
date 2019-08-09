@@ -27,6 +27,7 @@ func (s *StubRetryPolicy) getRetryDelay() time.Duration {
 }
 
 func (s *StubRetryPolicy) resetRetries() {
+	s.resetRetriesCalls++
 	s.retryCount = 0
 }
 
