@@ -16,7 +16,6 @@ Logging of errors happen as the program runs but due to the large console output
 Notes: 
 
 SMTP and FTP links are not supported. HTTP will always be reformatted to HTTPS.
-Sitemap outputs to a text file called `sitemap.txt`. This is just a sorted list rather than any hierarchical relationship.
 
 Improvements:
 

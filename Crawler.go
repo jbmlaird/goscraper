@@ -62,7 +62,7 @@ func (c *Crawler) crawlUrl(parentUrl, url string, wg *sync.WaitGroup) error {
 	if err != nil {
 		return errors.Wrapf(err, "%v is a different domain, parent URL: %v, original URL: %v", cleanedUrl, parentUrl, url)
 	}
-	err = c.sitemapBuilder.AddToCrawledUrls(url)
+	err = c.sitemapBuilder.AddToCrawledUrls(cleanedUrl)
 	if err != nil {
 		log.Printf("%v has already been crawled", url)
 		return errors.Wrapf(err, "skipping cleaned URL %v, parent URL: %v, original URL: %v", cleanedUrl, parentUrl, url)
