@@ -51,6 +51,8 @@ func (c *Crawler) BuildSitemap(baseUrl string) ([]string, error) {
 	return c.sitemapBuilder.BuildSitemap(), nil
 }
 
+// parentUrl is passed in so that when the crawler logs, you will be able to see the page that this link is located on
+// that is causing this error. This would help with debugging the website.
 func (c *Crawler) crawlUrl(parentUrl, url string, wg *sync.WaitGroup) error {
 	cleanedUrl, err := CleanUrl(url, c.hostnameWithProtocol)
 	if err != nil {
@@ -107,9 +109,9 @@ func (c *Crawler) getPageContents(url string) (io.ReadCloser, error) {
 	return nil, errors.Errorf("unable to read response body for URL %v", url)
 }
 
-// I don't want goroutine errors to crash the program
+// I don't want goroutine errors to crash the program, only the base URL.
 //
-// In reality, one would read the logs in a UI so I have output errors to a file
+// In reality, one would read the logs in a UI so I have output errors to a file.
 func (c *Crawler) writeErrorsToFile() {
 	f, err := os.Create("goroutineErrors.txt")
 	defer f.Close()
