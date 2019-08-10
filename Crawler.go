@@ -32,65 +32,65 @@ func NewCrawler(hostname string) *Crawler {
 var errDifferentDomain = errors.New("URL belongs to another domain")
 var errInvalidUrl = errors.New("URL is either a single character or empty")
 
-func (c *Crawler) BuildSitemap(urlToCrawl string) ([]string, error) {
-	err := c.urlParser.VerifyBaseUrl(urlToCrawl)
+func (c *Crawler) BuildSitemap(baseUrl string) ([]string, error) {
+	err := c.urlParser.VerifyBaseUrl(baseUrl)
 	if err != nil {
 		if err == errInvalidBaseUrl {
-			return nil, errors.Wrapf(err, "URL supplied is in the incorrect format: %v", urlToCrawl)
+			return nil, errors.Wrapf(err, "URL supplied is in the incorrect format: %v", baseUrl)
 		}
-		return nil, errors.Wrapf(err, "Error parsing given URL %v", urlToCrawl)
+		return nil, errors.Wrapf(err, "Error parsing given URL %v", baseUrl)
 	}
 
 	var wg sync.WaitGroup
-	err = c.crawlUrl(urlToCrawl, &wg)
+	err = c.crawlUrl(baseUrl, baseUrl, &wg)
 	wg.Wait()
 	c.writeErrorsToFile()
 	if err != nil {
-		return nil, errors.Wrapf(err, "problem trying to crawl base URL: %v", urlToCrawl)
+		return nil, errors.Wrapf(err, "problem trying to crawl base URL: %v", baseUrl)
 	}
 	return c.sitemapBuilder.BuildSitemap(), nil
 }
 
-func (c *Crawler) crawlUrl(url string, wg *sync.WaitGroup) error {
+func (c *Crawler) crawlUrl(parentUrl, url string, wg *sync.WaitGroup) error {
 	cleanedUrl, err := CleanUrl(url, c.hostnameWithProtocol)
 	if err != nil {
 		return errors.Wrapf(err, "invalid URL passed to clean URL: %v", url)
 	}
 	err = c.urlParser.CheckSameDomain(cleanedUrl, c.hostnameWithProtocol)
 	if err != nil {
-		return errors.Wrapf(err, "%v is a different domain, original URL: %v", cleanedUrl, url)
+		return errors.Wrapf(err, "%v is a different domain, parent URL: %v, original URL: %v", cleanedUrl, parentUrl, url)
 	}
 	err = c.sitemapBuilder.AddToCrawledUrls(url)
 	if err != nil {
 		log.Printf("%v has already been crawled", url)
-		return errors.Wrapf(err, "skipping cleaned url %v, original url %v", cleanedUrl, url)
+		return errors.Wrapf(err, "skipping cleaned URL %v, parent URL: %v, original URL: %v", cleanedUrl, parentUrl, url)
 	}
 	log.Printf("crawling cleaned URL: %v, original URL: %v", cleanedUrl, url)
 	responseBody, err := c.getPageContents(cleanedUrl)
 	if err != nil {
-		return errors.Wrapf(err, "unable to get response body for cleaned URL %v, original URL %v", cleanedUrl, url)
+		return errors.Wrapf(err, "unable to get response body for cleaned URL %v, parent URL: %v, original URL: %v", parentUrl, cleanedUrl, url)
 	}
 	err = c.sitemapBuilder.AddToSitemap(cleanedUrl)
 	if err != nil {
-		return errors.Wrapf(err, "URL already in sitemap. Cleaned URL: %v, URL: %v", cleanedUrl, url)
+		return errors.Wrapf(err, "URL already in sitemap. Cleaned URL: %v, parent URL: %v, URL: %v", cleanedUrl, parentUrl, url)
 	}
 	urls, err := findUrls(responseBody)
 	if err != nil {
-		return errors.Wrapf(err, "unable to find any URLs for cleaned URL %v, original URL: %v", cleanedUrl, url)
+		return errors.Wrapf(err, "unable to find any URLs for cleaned URL %v, parent URL: %v, original URL: %v", cleanedUrl, parentUrl, url)
 	}
 	err = responseBody.Close()
 	if err != nil {
-		return errors.Wrapf(err, "unable to close response body from cleaned URL %v, original URL %v", cleanedUrl, url)
+		return errors.Wrapf(err, "unable to close response body from cleaned URL %v, parent URL: %v, original URL %v", cleanedUrl, parentUrl, url)
 	}
 	wg.Add(len(urls))
-	for _, url := range urls {
-		go func(url string, wg *sync.WaitGroup) {
+	for _, linkedUrl := range urls {
+		go func(parentUrl, linkedUrl string, wg *sync.WaitGroup) {
 			defer wg.Done()
-			err = c.crawlUrl(url, wg)
+			err = c.crawlUrl(parentUrl, linkedUrl, wg)
 			if err != nil {
 				c.crawlerErrors = append(c.crawlerErrors, err)
 			}
-		}(url, wg)
+		}(url, linkedUrl, wg)
 	}
 	return nil
 }
@@ -109,7 +109,7 @@ func (c *Crawler) getPageContents(url string) (io.ReadCloser, error) {
 
 // I don't want goroutine errors to crash the program
 //
-// In reality, one would read the logs in a UI so I have output errors to a file just for this exercise
+// In reality, one would read the logs in a UI so I have output errors to a file
 func (c *Crawler) writeErrorsToFile() {
 	f, err := os.Create("goroutineErrors.txt")
 	defer f.Close()

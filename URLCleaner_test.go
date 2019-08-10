@@ -40,7 +40,7 @@ func TestAddHttpsIfNecessary(t *testing.T) {
 		Want  string
 	}{
 		{
-			"adds https:// to blank protocolCapGroup",
+			"adds https:// to blank protocol",
 			"google.com",
 			"https://google.com",
 		},
@@ -50,9 +50,9 @@ func TestAddHttpsIfNecessary(t *testing.T) {
 			"https://google.com",
 		},
 		{
-			"doesn't add https:// to http://",
+			"adds https:// to http://",
 			"http://google.com",
-			"http://google.com",
+			"https://google.com",
 		},
 	}
 
@@ -156,10 +156,15 @@ func TestCleanUrl(t *testing.T) {
 			"https://monzo.com",
 			"https://monzo.com",
 		},
-		{"CleanUrl doesn't add https:// to http protocol",
+		{"CleanUrl doesn't add https:// to another protocol",
+			"https://monzo.com",
+			"monzo://monzo.com",
+			"monzo://monzo.com",
+		},
+		{"CleanUrl adds https:// to http protocol",
 			"https://monzo.com",
 			"http://monzo.com/help",
-			"http://monzo.com/help",
+			"https://monzo.com/help",
 		},
 	}
 

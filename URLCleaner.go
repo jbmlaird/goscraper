@@ -42,10 +42,12 @@ func stripAfterSeparator(url, separator string) string {
 	return strings.Split(url, separator)[0]
 }
 
-// If a link is supplied as http:// I want to retain that.
-// When comparing links, the hostname is used with the protocol ignored to prevent duplicates from being added
+// When comparing links, the hostname is compared with the protocol ignored to prevent duplicates from being added
 func addHttpsIfNecessary(url string) string {
-	if !strings.HasPrefix(url, "https://") && !strings.HasPrefix(url, "http://") {
+	if strings.HasPrefix(url, "http://") {
+		return strings.Replace(url, "http://", "https://", 1)
+	}
+	if !strings.HasPrefix(url, "https://") && !strings.Contains(url, "://") {
 		return "https://" + url
 	}
 	return url
