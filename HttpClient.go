@@ -46,7 +46,10 @@ func (r *RetryHttpClient) getResponse(url string) (*http.Response, error) {
 	for i := 0; i < r.retryPolicy.getMaxRetries()+1; i++ {
 		response, err = r.Get(url)
 		if err != nil {
-			return nil, err
+			if r.retryPolicy.isFinalTry(i) {
+				return nil, errors.Wrapf(err, "Failed final attempt for URL %v", url)
+			}
+			err = errors.Wrapf(err, "Failed attempt #%d for URL %v. Retrying", i + 1, url)
 		}
 		if response != nil {
 			if response.StatusCode == http.StatusOK {
@@ -57,7 +60,7 @@ func (r *RetryHttpClient) getResponse(url string) (*http.Response, error) {
 				return nil, errors.Errorf(errorMessage, url, response.StatusCode)
 			}
 		}
-		log.Printf("Error fetching URL: %v", url)
+		log.Printf("Error fetching URL attempt #%d: %v", i + 1, url)
 		time.Sleep(r.retryPolicy.getRetryDelay())
 		r.retryPolicy.backoff()
 	}

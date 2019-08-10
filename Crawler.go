@@ -1,40 +1,39 @@
 package main
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"io"
 	"log"
+	"os"
 	"sync"
 )
 
 type Crawler struct {
 	hostnameWithProtocol string
-	urlManipulator       *URLManipulator
+	urlParser            *URLParser
 	client               *RetryHttpClient
-	*CrawlerUrlChecker
-	sitemapBuilder SitemapBuilder
-	mu             sync.RWMutex
-	crawlerErrors  []error
+	sitemapBuilder       *SitemapBuilder
+	mu                   sync.RWMutex
+	crawlerErrors        []error
 }
 
 func NewCrawler(hostname string) *Crawler {
 	return &Crawler{
 		addHttpsIfNecessary(hostname),
-		NewUrlManipulator(),
+		NewUrlParser(),
 		NewRetryHttpClient(3, 5, 10),
-		NewCrawlerUrlTracker(),
-		SitemapBuilder{},
+		NewSitemapBuilder(),
 		sync.RWMutex{},
 		[]error{},
 	}
 }
 
 var errDifferentDomain = errors.New("URL belongs to another domain")
-var errAlreadyCrawled = errors.New("already crawled URL")
-var errSingleCharacter = errors.New("URL is only a single character")
+var errInvalidUrl = errors.New("URL is either a single character or empty")
 
-func (c *Crawler) buildSitemap(urlToCrawl string) ([]string, error) {
-	err := c.urlManipulator.verifyBaseUrl(urlToCrawl)
+func (c *Crawler) BuildSitemap(urlToCrawl string) ([]string, error) {
+	err := c.urlParser.VerifyBaseUrl(urlToCrawl)
 	if err != nil {
 		if err == errInvalidBaseUrl {
 			return nil, errors.Wrapf(err, "URL supplied is in the incorrect format: %v", urlToCrawl)
@@ -43,49 +42,38 @@ func (c *Crawler) buildSitemap(urlToCrawl string) ([]string, error) {
 	}
 
 	var wg sync.WaitGroup
-	err = c.request(urlToCrawl, &wg)
+	err = c.crawlUrl(urlToCrawl, &wg)
 	wg.Wait()
-	for _, value := range c.crawlerErrors {
-		// I don't want goroutine errors to crash the program
-		log.Printf("a goroutine failed with error: %v", value)
-	}
+	c.writeErrorsToFile()
 	if err != nil {
 		return nil, errors.Wrapf(err, "problem trying to crawl base URL: %v", urlToCrawl)
 	}
-	return c.sitemapBuilder.returnSitemap(), nil
+	return c.sitemapBuilder.BuildSitemap(), nil
 }
 
-func (c *Crawler) getResponseBody(url string) (io.ReadCloser, error) {
-	response, err := c.client.getResponse(url)
-	if err != nil {
-		return nil, errors.WithMessagef(err, "failed to fetch URL: %v", c.hostnameWithProtocol)
-	}
-	if response != nil {
-		return response.Body, nil
-	}
-	return nil, errors.Errorf("unable to read response body for URL %v", url)
-}
-
-func (c *Crawler) request(url string, wg *sync.WaitGroup) error {
-	defer wg.Done()
-	cleanedUrl, err := cleanUrl(url, c.hostnameWithProtocol)
+func (c *Crawler) crawlUrl(url string, wg *sync.WaitGroup) error {
+	cleanedUrl, err := CleanUrl(url, c.hostnameWithProtocol)
 	if err != nil {
 		return errors.Wrapf(err, "invalid URL passed to clean URL: %v", url)
 	}
-	err = c.urlManipulator.checkSameDomain(cleanedUrl, c.hostnameWithProtocol)
+	err = c.urlParser.CheckSameDomain(cleanedUrl, c.hostnameWithProtocol)
 	if err != nil {
 		return errors.Wrapf(err, "%v is a different domain, original URL: %v", cleanedUrl, url)
 	}
-	err = c.addToCrawledUrlsIfUncrawled(cleanedUrl)
+	err = c.sitemapBuilder.AddToCrawledUrls(url)
 	if err != nil {
+		log.Printf("%v has already been crawled", url)
 		return errors.Wrapf(err, "skipping cleaned url %v, original url %v", cleanedUrl, url)
 	}
 	log.Printf("crawling cleaned URL: %v, original URL: %v", cleanedUrl, url)
-	responseBody, err := c.getResponseBody(cleanedUrl)
+	responseBody, err := c.getPageContents(cleanedUrl)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get response body for cleaned URL %v, original URL %v", cleanedUrl, url)
 	}
-	c.sitemapBuilder.addToSitemap(cleanedUrl)
+	err = c.sitemapBuilder.AddToSitemap(cleanedUrl)
+	if err != nil {
+		return errors.Wrapf(err, "URL already in sitemap. Cleaned URL: %v, URL: %v", cleanedUrl, url)
+	}
 	urls, err := findUrls(responseBody)
 	if err != nil {
 		return errors.Wrapf(err, "unable to find any URLs for cleaned URL %v, original URL: %v", cleanedUrl, url)
@@ -97,7 +85,8 @@ func (c *Crawler) request(url string, wg *sync.WaitGroup) error {
 	wg.Add(len(urls))
 	for _, url := range urls {
 		go func(url string, wg *sync.WaitGroup) {
-			err = c.request(url, wg)
+			defer wg.Done()
+			err = c.crawlUrl(url, wg)
 			if err != nil {
 				c.crawlerErrors = append(c.crawlerErrors, err)
 			}
@@ -106,11 +95,29 @@ func (c *Crawler) request(url string, wg *sync.WaitGroup) error {
 	return nil
 }
 
-func (c *Crawler) addToCrawledUrlsIfUncrawled(url string) error {
-	err := c.isAlreadyCrawled(url)
+// Whack the URL and return the response body
+func (c *Crawler) getPageContents(url string) (io.ReadCloser, error) {
+	response, err := c.client.getResponse(url)
 	if err != nil {
-		log.Printf("%v has already been crawled", url)
-		return errAlreadyCrawled
+		return nil, errors.Wrapf(err, "failed to fetch URL: %v", c.hostnameWithProtocol)
 	}
-	return nil
+	if response != nil {
+		return response.Body, nil
+	}
+	return nil, errors.Errorf("unable to read response body for URL %v", url)
+}
+
+// I don't want goroutine errors to crash the program
+//
+// In reality, one would read the logs in a UI so I have output errors to a file just for this exercise
+func (c *Crawler) writeErrorsToFile() {
+	f, err := os.Create("goroutineErrors.txt")
+	defer f.Close()
+	if err != nil {
+		fmt.Printf("unable to write goroutine errors to a file with error: %v", err)
+		return
+	}
+	for _, goroutineError := range c.crawlerErrors {
+		_, _ = f.WriteString(fmt.Sprintf("%v\n", goroutineError))
+	}
 }

@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type StubRetryPolicy struct {
+type SpyRetryPolicy struct {
 	maxRetries        int
 	retryCount        int
 	backoffCalls      int
@@ -17,32 +17,32 @@ type StubRetryPolicy struct {
 	finalTryCalls     int
 }
 
-func (s *StubRetryPolicy) backoff() {
+func (s *SpyRetryPolicy) backoff() {
 	s.backoffCalls++
 }
 
-func (s *StubRetryPolicy) getRetryDelay() time.Duration {
+func (s *SpyRetryPolicy) getRetryDelay() time.Duration {
 	s.retryDelayCalls++
 	return 0
 }
 
-func (s *StubRetryPolicy) resetRetries() {
+func (s *SpyRetryPolicy) resetRetries() {
 	s.resetRetriesCalls++
 	s.retryCount = 0
 }
 
-func (s *StubRetryPolicy) isFinalTry(try int) bool {
+func (s *SpyRetryPolicy) isFinalTry(try int) bool {
 	s.finalTryCalls++
 	return s.maxRetries <= try
 }
 
-func (s *StubRetryPolicy) getMaxRetries() int {
+func (s *SpyRetryPolicy) getMaxRetries() int {
 	return s.maxRetries
 }
 
 func TestURLFetcher(t *testing.T) {
 	t.Run("fetch URL no maxRetries no body, return successful", func(t *testing.T) {
-		stubRetryPolicy := &StubRetryPolicy{
+		stubRetryPolicy := &SpyRetryPolicy{
 			maxRetries: 3,
 		}
 		statusCode := http.StatusOK
@@ -61,7 +61,7 @@ func TestURLFetcher(t *testing.T) {
 
 	t.Run("fail, no retries", func(t *testing.T) {
 		maxRetries := 0
-		stubRetryPolicy := &StubRetryPolicy{
+		stubRetryPolicy := &SpyRetryPolicy{
 			maxRetries: maxRetries,
 		}
 		statusCode := http.StatusNotFound
@@ -79,7 +79,7 @@ func TestURLFetcher(t *testing.T) {
 
 	t.Run("fetch URL 3 maxRetries, fail, getRetryDelay 3 times, return 500 error", func(t *testing.T) {
 		maxRetries := 3
-		stubRetryPolicy := &StubRetryPolicy{
+		stubRetryPolicy := &SpyRetryPolicy{
 			maxRetries: maxRetries,
 		}
 		statusCode := http.StatusInternalServerError
@@ -95,7 +95,7 @@ func TestURLFetcher(t *testing.T) {
 	})
 
 	t.Run("failing resets retry count", func(t *testing.T) {
-		stubRetryPolicy := &StubRetryPolicy{
+		stubRetryPolicy := &SpyRetryPolicy{
 			maxRetries: 3,
 		}
 		statusCode := http.StatusInternalServerError
@@ -109,7 +109,6 @@ func TestURLFetcher(t *testing.T) {
 		assertErrorMessage(t, err, fmt.Sprintf(errorMessage, ts.URL, statusCode))
 		assertRetryValue(t, stubRetryPolicy.retryCount, 0)
 	})
-	// No unit test for timeout as that is not my code
 }
 
 func assertStatusCode(t *testing.T, got, want int) {

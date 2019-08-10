@@ -6,7 +6,6 @@ import (
 	"io"
 )
 
-// Not tested as I don't want to test a library's code
 func findUrls(responseBody io.ReadCloser) (urls []string, err error) {
 	document, err := goquery.NewDocumentFromReader(responseBody)
 	if err != nil {

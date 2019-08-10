@@ -1,1 +1,7 @@
+# Goland configuration files
 .idea
+
+# Execution outputs
+goroutineErrors.txt
+sitemap.txt
+goscraper

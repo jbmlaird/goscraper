@@ -118,6 +118,12 @@ func TestStripAfterSeparator(t *testing.T) {
 			"https://www.monzo.co.uk/yeah-dawg",
 			"https://www.monzo.co.uk/yeah-dawg",
 		},
+		{
+			"strip single character with character, nothing",
+			"/",
+			"/",
+			"",
+		},
 	}
 
 	for _, test := range stripAfterSeparatorCases {
@@ -129,51 +135,78 @@ func TestStripAfterSeparator(t *testing.T) {
 }
 
 func TestCleanUrl(t *testing.T) {
-	testCleanUrlCases := []struct {
+	cleanUrlSuccessCases := []struct {
 		Name    string
 		BaseUrl string
 		Input   string
 		Want    string
 	}{
-		{"cleanUrl adds https:// to BaseUrl",
+		{"CleanUrl adds https:// to BaseUrl",
 			"google.co.uk",
 			"google.co.uk",
 			"https://google.co.uk",
 		},
-		{"cleanUrl adds base url to relative path",
+		{"CleanUrl adds base url to relative path",
 			"condenastint.com",
 			"/help",
 			"https://condenastint.com/help",
 		},
-		{"cleanUrl doesn't add https:// to https protocol",
+		{"CleanUrl doesn't add https:// to https protocol",
 			"https://monzo.com",
 			"https://monzo.com",
 			"https://monzo.com",
 		},
-		{"cleanUrl doesn't add https:// to http protocol",
+		{"CleanUrl doesn't add https:// to http protocol",
 			"https://monzo.com",
 			"http://monzo.com/help",
 			"http://monzo.com/help",
 		},
 	}
 
-	for _, test := range testCleanUrlCases {
+	for _, test := range cleanUrlSuccessCases {
 		t.Run(test.Name, func(t *testing.T) {
-			got, err := cleanUrl(test.Input, test.BaseUrl)
+			got, err := CleanUrl(test.Input, test.BaseUrl)
 			assertNoError(t, err)
 			assertStringOutput(t, got, test.Want)
 		})
 	}
 
-	t.Run("pass single character, throw error", func(t *testing.T) {
-		got, err := cleanUrl("/", "www.monzo.com")
-		assertErrorMessage(t, err, errSingleCharacter.Error())
-		assertStringOutput(t, got, "")
-	})
+	cleanUrlFailureCases := []struct {
+		Name    string
+		Input   string
+		Error error
+	}{
+		{"pass single character, throw invalid URL error",
+			"/",
+			errInvalidUrl,
+		},
+		{"pass empty string, throw invalid URL error",
+			"",
+			errInvalidUrl,
+		},
+		{"pass anchor URL, throw path or query error",
+			"#some-stuff",
+			errPathOrQuery,
+		},
+		{"pass query string, throw error",
+			"?s=fintech_is_cool",
+			errPathOrQuery,
+		},
+		{"pass SMTP, throw unsupported protocol error",
+			"smtp://some-website.com",
+			errUnsupportedProtocol,
+		},
+		{"pass FTP, throw unsupported protocol error",
+			"ftp://some-other-website.com",
+			errUnsupportedProtocol,
+		},
+	}
 
-	t.Run("pass empty string, throw error", func(t *testing.T) {
-		got, err := cleanUrl("", "www.monzo.com")
-		assertErrorMessage(t, err, errSingleCharacter.Error())
-		assertStringOutput(t, got, "")
-	})
+	for _, test := range cleanUrlFailureCases {
+		t.Run(test.Name, func(t *testing.T) {
+			got, err := CleanUrl(test.Input, "www.monzo.com")
+			assertErrorMessage(t, err, test.Error.Error())
+			assertStringOutput(t, got, "")
+		})
+	}
 }
