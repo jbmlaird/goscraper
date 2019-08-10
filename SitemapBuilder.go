@@ -7,16 +7,18 @@ import (
 )
 
 type SitemapBuilder struct {
-	crawledUrls map[string]struct{}
-	sitemapUrls map[string]struct{}
-	mutex           sync.Mutex
+	crawledUrls      map[string]struct{}
+	sitemapUrls      map[string]struct{}
+	crawledUrlsMutex sync.Mutex
+	sitemapUrlsMutex sync.Mutex
 }
 
 func NewSitemapBuilder() *SitemapBuilder {
 	return &SitemapBuilder{
-		crawledUrls: map[string]struct{}{},
-		sitemapUrls: map[string]struct{}{},
-		mutex: sync.Mutex{},
+		crawledUrls:      map[string]struct{}{},
+		sitemapUrls:      map[string]struct{}{},
+		crawledUrlsMutex: sync.Mutex{},
+		sitemapUrlsMutex: sync.Mutex{},
 	}
 }
 
@@ -24,18 +26,20 @@ var errAlreadyCrawled = errors.New("already crawled URL")
 var errAlreadyInSitemap = errors.New("already added URL to sitemap")
 
 func (s *SitemapBuilder) AddToCrawledUrls(url string) error {
+	s.crawledUrlsMutex.Lock()
+	defer s.crawledUrlsMutex.Unlock()
 	return s.addToMap(url, s.crawledUrls, errAlreadyCrawled)
 }
 
 func (s *SitemapBuilder) AddToSitemap(url string) error {
+	s.sitemapUrlsMutex.Lock()
+	defer s.sitemapUrlsMutex.Unlock()
 	return s.addToMap(url, s.sitemapUrls, errAlreadyInSitemap)
 }
 
 func (s *SitemapBuilder) addToMap(url string, urlMap map[string]struct{}, err error) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	_, ok := urlMap[url]
-	if !ok {
+	_, exists := urlMap[url]
+	if !exists {
 		urlMap[url] = struct{}{}
 		return nil
 	}

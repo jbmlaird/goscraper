@@ -56,33 +56,33 @@ func (c *Crawler) BuildSitemap(baseUrl string) ([]string, error) {
 func (c *Crawler) crawlUrl(parentUrl, url string, wg *sync.WaitGroup) error {
 	cleanedUrl, err := CleanUrl(url, c.hostnameWithProtocol)
 	if err != nil {
-		return errors.Wrapf(err, "invalid URL passed to clean URL: %v", url)
+		return errors.Wrapf(err, "invalid URL passed to clean URL: %v\nparent URL: %v", url, parentUrl)
 	}
 	err = c.urlParser.CheckSameDomain(cleanedUrl, c.hostnameWithProtocol)
 	if err != nil {
-		return errors.Wrapf(err, "%v is a different domain, parent URL: %v, original URL: %v", cleanedUrl, parentUrl, url)
+		return errors.Wrapf(err, "%v is a different domain, parent URL: %v\noriginal URL: %v", cleanedUrl, parentUrl, url)
 	}
 	err = c.sitemapBuilder.AddToCrawledUrls(cleanedUrl)
 	if err != nil {
 		log.Printf("%v has already been crawled", url)
-		return errors.Wrapf(err, "skipping cleaned URL %v, parent URL: %v, original URL: %v", cleanedUrl, parentUrl, url)
+		return errors.Wrapf(err, "skipping cleaned URL %v\nparent URL: %v\noriginal URL: %v", cleanedUrl, parentUrl, url)
 	}
 	log.Printf("crawling cleaned URL: %v, original URL: %v", cleanedUrl, url)
 	responseBody, err := c.getPageContents(cleanedUrl)
 	if err != nil {
-		return errors.Wrapf(err, "unable to get response body for cleaned URL %v, parent URL: %v, original URL: %v", parentUrl, cleanedUrl, url)
+		return errors.Wrapf(err, "unable to get response body for cleaned URL %v\nparent URL: %v\noriginal URL: %v", parentUrl, cleanedUrl, url)
 	}
 	err = c.sitemapBuilder.AddToSitemap(cleanedUrl)
 	if err != nil {
-		return errors.Wrapf(err, "URL already in sitemap. Cleaned URL: %v, parent URL: %v, URL: %v", cleanedUrl, parentUrl, url)
+		return errors.Wrapf(err, "URL already in sitemap. Cleaned URL: %v\nparent URL: %v\nURL: %v", cleanedUrl, parentUrl, url)
 	}
 	urls, err := findUrls(responseBody)
 	if err != nil {
-		return errors.Wrapf(err, "unable to find any URLs for cleaned URL %v, parent URL: %v, original URL: %v", cleanedUrl, parentUrl, url)
+		return errors.Wrapf(err, "unable to find any URLs for cleaned URL %v\nparent URL: %v\noriginal URL: %v", cleanedUrl, parentUrl, url)
 	}
 	err = responseBody.Close()
 	if err != nil {
-		return errors.Wrapf(err, "unable to close response body from cleaned URL %v, parent URL: %v, original URL %v", cleanedUrl, parentUrl, url)
+		return errors.Wrapf(err, "unable to close response body from cleaned URL %v\nparent URL: %v\noriginal URL %v", cleanedUrl, parentUrl, url)
 	}
 	wg.Add(len(urls))
 	for _, linkedUrl := range urls {

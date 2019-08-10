@@ -24,5 +24,4 @@ Improvements:
 * Cancelled request handling
 * Allow the passing in of a base URL on execution
 * Hierarchical output of sitemap as opposed to sorted list
-* Is a single mutex in SitemapBuilder suitable? Or should there be two for the different adding to maps? Would that
-increase performance?
+* Explore correct usage of RWMutexes. See `BenchmarkSitemapBuilder_AddingToMapsWithMutexes` documentation

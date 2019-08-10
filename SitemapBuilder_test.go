@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -133,4 +134,28 @@ func TestSitemapGenerator(t *testing.T) {
 			t.Errorf("sitemap not in expected format. Got %v, wanted %v", got, want)
 		}
 	})
+}
+
+// This was so I could test 3 cases:
+//  1. Using the same mutex for both maps
+//  2. Using two separate mutexes for each of the maps
+//  3. Using two separate RWMutexes. RLocking/RUnlocking when checking the map and Locking/Unlocking when writing
+//
+// Case 2 came out the most efficient
+//
+// Perhaps case 3 is best used when a function doesn't both read and write as in my test the same RWMutex was both
+// read and write locked when writing
+func BenchmarkSitemapBuilder_AddingToMapsWithMutexes(b *testing.B) {
+	sitemapBuilder := NewSitemapBuilder()
+	for n := 0; n < b.N; n++ {
+		for i:=0; i<1000; i++ {
+			link := fmt.Sprintf("link%v", i)
+			go func(link string) {
+				_ = sitemapBuilder.AddToSitemap(link)
+			}(link)
+			go func(link string) {
+				_ = sitemapBuilder.AddToCrawledUrls(link)
+			}(link)
+		}
+	}
 }
