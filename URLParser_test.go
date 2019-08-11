@@ -36,8 +36,13 @@ func TestVerifyUrl(t *testing.T) {
 			"HTTPS://monzo.co.uk",
 		},
 		{
-			"verify, removing trailing slash",
+			"verify with trailing slash",
 			"HTTPS://monzo.co.uk/",
+			"HTTPS://monzo.co.uk",
+		},
+		{
+			"verify with wwww.",
+			"HTTPS://www.monzo.co.uk/",
 			"HTTPS://monzo.co.uk",
 		},
 	}

@@ -141,10 +141,7 @@ func TestSitemapGenerator(t *testing.T) {
 //  2. Using two separate mutexes for each of the maps
 //  3. Using two separate RWMutexes. RLocking/RUnlocking when checking the map and Locking/Unlocking when writing
 //
-// Case 2 came out the most efficient
-//
-// Perhaps case 3 is best used when a function doesn't both read and write as in my test the same RWMutex was both
-// read and write locked when writing
+// Case 2 came out the fastest.
 func BenchmarkSitemapBuilder_AddingToMapsWithMutexes(b *testing.B) {
 	sitemapBuilder := NewSitemapBuilder()
 	for n := 0; n < b.N; n++ {

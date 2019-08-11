@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"time"
 )
 
@@ -17,17 +16,5 @@ func main() {
 		log.Fatalf("unable to crawl base URL: %v, err: %v", urlToCrawl, err)
 	}
 	fmt.Printf("crawling took: %s", time.Since(start))
-	writeSitemapToFile(sitemap)
-}
-
-func writeSitemapToFile(sitemap []string) {
-	f, err := os.Create("sitemap.txt")
-	defer f.Close()
-	if err != nil {
-		fmt.Printf("unable to write sitemap to a file with error: %v", err)
-		return
-	}
-	for _, goroutineError := range sitemap {
-		_, _ = f.WriteString(fmt.Sprintf("%v\n", goroutineError))
-	}
+	WriteSliceToFile(sitemap, "sitemap.txt")
 }

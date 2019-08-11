@@ -13,14 +13,15 @@ func CleanUrl(url, baseUrl string) (string, error) {
 		return "", errInvalidUrl
 	} else if url[0] == '#' || url[0] == '?' {
 		return "", errPathOrQuery
-	} else if strings.HasPrefix(url, "ftp://") || strings.HasPrefix(url, "smtp://") {
-		return "", errUnsupportedProtocol
 	}
-	url = stripTrailingSlash(url)
-	url = stripAfterSeparator(url, "?") // strip queries
-	url = stripAfterSeparator(url, "#") // strip anchors
 	url = addHostnameAndProtocolToRelativeUrls(url, baseUrl)
 	url = addHttpsIfNecessary(url)
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") && !strings.HasPrefix(url, "/") {
+		return "", errUnsupportedProtocol
+	}
+	url = stripAfterSeparator(url, "?") // strip queries
+	url = stripAfterSeparator(url, "#") // strip anchors
+	url = stripTrailingSlash(url)
 	return url, nil
 }
 
@@ -42,7 +43,6 @@ func stripAfterSeparator(url, separator string) string {
 	return strings.Split(url, separator)[0]
 }
 
-// When comparing links, the hostname is compared with the protocol ignored to prevent duplicates from being added
 func addHttpsIfNecessary(url string) string {
 	if strings.HasPrefix(url, "http://") {
 		return strings.Replace(url, "http://", "https://", 1)
