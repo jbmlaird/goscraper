@@ -137,15 +137,26 @@ func TestSitemapGenerator(t *testing.T) {
 }
 
 // This was so I could test 3 cases:
-//  1. Using the same mutex for both maps
-//  2. Using two separate mutexes for each of the maps
-//  3. Using two separate RWMutexes. RLocking/RUnlocking when checking the map and Locking/Unlocking when writing
+//  1. Using the same mutex for both maps - 2747832 ns/op
+//  2. Using two separate mutexes for each of the maps - 1872559 ns/op
+//  3. Using two separate RWMutexes. RLocking/RUnlocking when checking the map and Locking/Unlocking when writing - 1893284 ns/op
 //
-// Case 2 came out the fastest.
+// Case 2 came out the fastest
+//
+// Case 3 was narrowly longer so that may actually be the best implementation if one wanted to be very clear about locking
 func BenchmarkSitemapBuilder_AddingToMapsWithMutexes(b *testing.B) {
 	sitemapBuilder := NewSitemapBuilder()
 	for n := 0; n < b.N; n++ {
 		for i:=0; i<1000; i++ {
+			link := fmt.Sprintf("link%v", i)
+			go func(link string) {
+				_ = sitemapBuilder.AddToSitemap(link)
+			}(link)
+			go func(link string) {
+				_ = sitemapBuilder.AddToCrawledUrls(link)
+			}(link)
+		}
+		for i:=1000; i>0; i-- {
 			link := fmt.Sprintf("link%v", i)
 			go func(link string) {
 				_ = sitemapBuilder.AddToSitemap(link)

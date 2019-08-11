@@ -9,16 +9,16 @@ import (
 type SitemapBuilder struct {
 	crawledUrls      map[string]struct{}
 	sitemapUrls      map[string]struct{}
-	crawledUrlsMutex sync.Mutex
-	sitemapUrlsMutex sync.Mutex
+	crawledUrlsMutex sync.RWMutex
+	sitemapUrlsMutex sync.RWMutex
 }
 
 func NewSitemapBuilder() *SitemapBuilder {
 	return &SitemapBuilder{
 		crawledUrls:      map[string]struct{}{},
 		sitemapUrls:      map[string]struct{}{},
-		crawledUrlsMutex: sync.Mutex{},
-		sitemapUrlsMutex: sync.Mutex{},
+		crawledUrlsMutex: sync.RWMutex{},
+		sitemapUrlsMutex: sync.RWMutex{},
 	}
 }
 
@@ -26,15 +26,37 @@ var errAlreadyCrawled = errors.New("already crawled URL")
 var errAlreadyInSitemap = errors.New("already added URL to sitemap")
 
 func (s *SitemapBuilder) AddToCrawledUrls(url string) error {
-	s.crawledUrlsMutex.Lock()
-	defer s.crawledUrlsMutex.Unlock()
-	return s.addToMap(url, s.crawledUrls, errAlreadyCrawled)
+	//s.crawledUrlsMutex.Lock()
+	//defer s.crawledUrlsMutex.Unlock()
+	//return s.addToMap(url, s.crawledUrls, errAlreadyCrawled)
+
+	s.crawledUrlsMutex.RLock()
+	_, exists := s.crawledUrls[url]
+	s.crawledUrlsMutex.RUnlock()
+	if !exists {
+		s.crawledUrlsMutex.Lock()
+		s.crawledUrls[url] = struct{}{}
+		s.crawledUrlsMutex.Unlock()
+		return nil
+	}
+	return errAlreadyCrawled
 }
 
 func (s *SitemapBuilder) AddToSitemap(url string) error {
-	s.sitemapUrlsMutex.Lock()
-	defer s.sitemapUrlsMutex.Unlock()
-	return s.addToMap(url, s.sitemapUrls, errAlreadyInSitemap)
+	//s.sitemapUrlsMutex.Lock()
+	//defer s.sitemapUrlsMutex.Unlock()
+	//return s.addToMap(url, s.sitemapUrls, errAlreadyInSitemap)
+
+	s.sitemapUrlsMutex.RLock()
+	_, exists := s.sitemapUrls[url]
+	s.sitemapUrlsMutex.RUnlock()
+	if !exists {
+		s.sitemapUrlsMutex.Lock()
+		s.sitemapUrls[url] = struct{}{}
+		s.sitemapUrlsMutex.Unlock()
+		return nil
+	}
+	return errAlreadyCrawled
 }
 
 func (s *SitemapBuilder) addToMap(url string, urlMap map[string]struct{}, err error) error {
