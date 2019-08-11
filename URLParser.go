@@ -17,16 +17,16 @@ func NewUrlParser() *URLParser {
 }
 
 const (
-	protocolCapGroup    = "protocolCapGroup"
-	hostnameCapGroup    = "hostnameCapGroup"
-	pathOnwardsCapGroup = "pathOnwardsCapGroup"
+	protocolCapGroup       = "protocolCapGroup"
+	hostnameCapGroup       = "hostnameCapGroup"
+	hostnameOnwardsCapGoup = "hostnameOnwardsCapGoup"
 )
 
 var (
 	errInvalidBaseUrl    = errors.New("invalid base url. Only http/https and base URLs are supported")
 	protocolRegex        = fmt.Sprintf(`(?P<%v>https?\:\/\/)?`, protocolCapGroup)
 	hostnameRegex        = fmt.Sprintf(`(?P<%v>(www.)?[[:alnum:]]+\.[[:alnum:]]+(?:\.[[:alnum:]]+)?)`, hostnameCapGroup)
-	hostnameOnwardsRegex = fmt.Sprintf(`(?P<%v>.*)`, pathOnwardsCapGroup)
+	hostnameOnwardsRegex = fmt.Sprintf(`(?P<%v>.*)`, hostnameOnwardsCapGoup)
 	validUrlRegex        = fmt.Sprintf(`(?i)^%v%v\/?%v?$`, protocolRegex, hostnameRegex, hostnameOnwardsRegex)
 )
 
@@ -37,7 +37,7 @@ func (u *URLParser) VerifyBaseUrl(url string) error {
 	if baseUrlRes != nil {
 		for i, name := range u.urlRegex.SubexpNames() {
 			// Shouldn't need the final check. I think my regex is misbehaving
-			if name == pathOnwardsCapGroup  && i < len(baseUrlRes) && baseUrlRes[i] != "" {
+			if name == hostnameOnwardsCapGoup && i < len(baseUrlRes) && baseUrlRes[i] != "" {
 				return errInvalidBaseUrl
 			}
 			if name == hostnameCapGroup && i < len(baseUrlRes) {

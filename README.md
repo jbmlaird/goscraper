@@ -1,11 +1,14 @@
 # Go Crawler
 
+My first Go project.
+
+---
+
 To execute:
 
 1. `go build`
 2. `./goscraper`
-
-We in business.
+3. We in business.
 
 Sitemap outputs to `sitemap.txt`, goroutine errors output to `goroutineErrors.txt`.
 

@@ -29,7 +29,6 @@ var errDifferentDomain = errors.New("URL belongs to another domain")
 var errInvalidUrl = errors.New("URL is either a single character or empty")
 
 func (c *Crawler) BuildSitemap(baseUrl string) ([]string, error) {
-	var wg sync.WaitGroup
 	err := c.urlParser.VerifyBaseUrl(baseUrl)
 	if err != nil {
 		if err == errInvalidBaseUrl {
@@ -37,6 +36,7 @@ func (c *Crawler) BuildSitemap(baseUrl string) ([]string, error) {
 		}
 		return nil, errors.Wrapf(err, "Error parsing given URL %v", baseUrl)
 	}
+	var wg sync.WaitGroup
 	err = c.crawlUrl(baseUrl, baseUrl, &wg)
 	wg.Wait()
 	WriteSliceToFile(c.goroutineErrors, "goroutineErrors.txt")
